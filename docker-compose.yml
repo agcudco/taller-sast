@@ -36,7 +36,7 @@ services:
       retries: 5
 
   auth-service:
-    build: ./apps/auth-service     # ← ruta actualizada
+    build: ./apps/auth-service
     container_name: auth-service
     ports:
       - "3000:3000"
@@ -55,7 +55,7 @@ services:
     restart: always
 
   product-service:
-    build: ./apps/product-service   # ← ruta actualizada
+    build: ./apps/products
     container_name: product-service
     ports:
       - "3001:3000"
@@ -72,7 +72,7 @@ services:
     restart: always
 
   frontend:
-    build: ./apps/frontend          # ← ruta actualizada
+    build: ./apps/frontend
     container_name: frontend
     ports:
       - "80:80"
