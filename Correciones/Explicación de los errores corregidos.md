@@ -1,6 +1,6 @@
-## 6. Pruebas Realizadas y Corrección de Errores
+##  Pruebas Realizadas y Corrección de Errores
 
-Durante la fase de pruebas del sistema se realizó un análisis estático de código utilizando la herramienta **Semgrep**, con el objetivo de identificar errores que afectaran la compilación, ejecución y calidad general del proyecto.
+Durante la fase de pruebas del sistema se realizó un análisis estático de código utilizando la herramienta **Semgrep** con el objetivo de identificar errores que afectaran la compilación, ejecución y calidad general del proyecto.
 
 ### Error Detectado
 
