@@ -49,9 +49,8 @@ app.get('/api/categories', (req, res) => {
 app.get('/api/categories/search', (req, res) => {
   const searchTerm = req.query.name || '';
   // Concatenación directa -> SQLi
-  const query = `SELECT * FROM categories WHERE name LIKE '%${searchTerm}%'`;
-  console.log('[SQLi Categories]', query);
-  db.all(query, (err, rows) => {
+  const searchPattern = `%${searchTerm}%`;
+  db.all('SELECT * FROM categories WHERE name LIKE ?', [searchPattern], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -97,9 +96,8 @@ app.get('/api/products', (req, res) => {
 // SQL Injection en productos (ya existente)
 app.get('/api/products/search', (req, res) => {
   const searchTerm = req.query.name || '';
-  const query = `SELECT * FROM products WHERE name LIKE '%${searchTerm}%'`;
-  console.log('[SQLi Products]', query);
-  db.all(query, (err, rows) => {
+  const searchPattern = `%${searchTerm}%`;
+  db.all('SELECT * FROM products WHERE name LIKE ?', [searchPattern], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });

@@ -18,8 +18,7 @@ export const ProductDialog = ({ product, categories, onSave, onCancel }: Props) 
     name: '',
     description: '',
     price: 0,
-    costPrice: 0,
-    stockExact: 0,
+    stock: 0,
     imageUrl: '',
     categoryId: '',
   });
@@ -30,10 +29,9 @@ export const ProductDialog = ({ product, categories, onSave, onCancel }: Props) 
         name: product.name,
         description: product.description || '',
         price: product.price,
-        costPrice: product.costPrice || 0,
-        stockExact: product.stockExact || 0,
+        stock: product.stock ?? product.stockExact ?? 0,
         imageUrl: product.imageUrl || '',
-        categoryId: product.categoryId,
+        categoryId: product.categoryId || product.category?.id || '',
       });
     }
   }, [product]);
@@ -53,12 +51,8 @@ export const ProductDialog = ({ product, categories, onSave, onCancel }: Props) 
         <InputNumber value={form.price} onValueChange={(e) => setForm({ ...form, price: e.value || 0 })} mode="currency" currency="USD" />
       </div>
       <div className="field">
-        <label>Costo</label>
-        <InputNumber value={form.costPrice} onValueChange={(e) => setForm({ ...form, costPrice: e.value || 0 })} mode="currency" currency="USD" />
-      </div>
-      <div className="field">
         <label>Stock</label>
-        <InputNumber value={form.stockExact} onValueChange={(e) => setForm({ ...form, stockExact: e.value || 0 })} />
+        <InputNumber value={form.stock} onValueChange={(e) => setForm({ ...form, stock: e.value || 0 })} />
       </div>
       <div className="field">
         <label>URL Imagen</label>

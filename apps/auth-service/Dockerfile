@@ -1,5 +1,5 @@
 # Etapa de construcción
-FROM node:18-alpine AS build
+FROM node:24-alpine AS build
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ COPY . .
 RUN npm run build
 
 # Etapa de producción
-FROM node:18-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
@@ -21,5 +21,7 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/src/seeds ./seeds
 
 EXPOSE 3000
+
+USER node
 
 CMD ["node", "dist/main"]

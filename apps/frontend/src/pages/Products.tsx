@@ -78,8 +78,7 @@ export const Products = () => {
                 <Column field="name" header="Nombre" />
                 <Column field="description" header="Descripción" />
                 <Column field="price" header="Precio" />
-                {user?.role === 'operador' && <Column field="costPrice" header="Costo" />}
-                {user?.role === 'operador' && <Column field="stockExact" header="Stock" />}
+                {user?.role === 'operador' && <Column field="stock" header="Stock" />}
                 <Column field="category.name" header="Categoría" />
                 {user?.role === 'operador' && <Column body={actionBody} header="Acciones" />}
             </DataTable>

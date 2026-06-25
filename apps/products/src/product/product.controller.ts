@@ -22,7 +22,6 @@ import { UserRole } from 'src/auth/roles.enum';
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
-  @Post()
   // Solo operadores pueden crear productos
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -38,14 +37,14 @@ export class ProductController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.productService.findOne(+id);
+    return this.productService.findOne(id);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OPERADOR)
   update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productService.update(+id, updateProductDto);
+    return this.productService.update(id, updateProductDto);
   }
 
   @Delete(':id')
@@ -53,6 +52,6 @@ export class ProductController {
   @Roles(UserRole.OPERADOR)
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string) {
-    return this.productService.remove(+id);
+    return this.productService.remove(id);
   }
 }

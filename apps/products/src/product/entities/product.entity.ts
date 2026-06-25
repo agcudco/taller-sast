@@ -10,7 +10,7 @@ export class Product {
     @Column({ unique: true, length: 30 })
     name: string;
 
-    @Column({ length: 250 })
+    @Column({ length: 250, nullable: true })
     description?: string;
 
     @Column('bool', { default: true })
