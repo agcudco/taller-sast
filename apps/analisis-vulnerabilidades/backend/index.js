@@ -7,8 +7,8 @@ const { exec } = require('child_process');
 const app = express();
 const PORT = 3000;
 
-// Configuración insegura
-app.use(cors({ origin: '*' }));
+// Configuración segura
+app.use(cors({ origin: 'http://localhost:3000' }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
@@ -45,13 +45,10 @@ app.get('/api/categories', (req, res) => {
   });
 });
 
-// VULNERABLE A SQL INJECTION en búsqueda de categorías
+// Búsqueda segura con parámetros
 app.get('/api/categories/search', (req, res) => {
   const searchTerm = req.query.name || '';
-  // Concatenación directa -> SQLi
-  const query = `SELECT * FROM categories WHERE name LIKE '%${searchTerm}%'`;
-  console.log('[SQLi Categories]', query);
-  db.all(query, (err, rows) => {
+  db.all('SELECT * FROM categories WHERE name LIKE ?', [`%${searchTerm}%`], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -94,12 +91,10 @@ app.get('/api/products', (req, res) => {
   });
 });
 
-// SQL Injection en productos (ya existente)
+// Búsqueda segura con parámetros
 app.get('/api/products/search', (req, res) => {
   const searchTerm = req.query.name || '';
-  const query = `SELECT * FROM products WHERE name LIKE '%${searchTerm}%'`;
-  console.log('[SQLi Products]', query);
-  db.all(query, (err, rows) => {
+  db.all('SELECT * FROM products WHERE name LIKE ?', [`%${searchTerm}%`], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -146,11 +141,18 @@ app.delete('/api/products/:id', (req, res) => {
   });
 });
 
-// ========== COMMAND INJECTION (peligroso, solo para demostración) ==========
-// Endpoint que ejecuta cualquier comando del sistema
+// ========== COMMAND INJECTION (corregido) ==========
+// Endpoint restringido: solo permite comandos de solo lectura
+const ALLOWED_COMMANDS = ['whoami', 'date', 'uptime', 'uname -a', 'ls', 'echo hola', 'pwd', 'id'];
+
 app.get('/api/exec', (req, res) => {
-  const cmd = req.query.cmd || '';
-  // MUY PELIGROSO: ejecuta directamente el comando
+  const cmd = (req.query.cmd || '').trim();
+  if (!cmd) {
+    return res.status(400).json({ error: 'Comando requerido' });
+  }
+  if (!ALLOWED_COMMANDS.includes(cmd)) {
+    return res.status(403).json({ error: 'Comando no permitido' });
+  }
   exec(cmd, (error, stdout, stderr) => {
     if (error) {
       return res.json({ command: cmd, error: error.message, stderr });

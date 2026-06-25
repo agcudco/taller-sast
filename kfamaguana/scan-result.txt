@@ -1,0 +1,292 @@
+﻿semgrep :                   
+En línea: 1 Carácter: 1
++ semgrep ci 2>&1 | Out-File -FilePath "D:\ESPE\SEPTIMO SEMESTRE\SOFTWA ...
++ ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (                  :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                  
+ÔöîÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
+Ôöé Debugging Info Ôöé
+ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÿ
+                  
+  SCAN ENVIRONMENT
+  versions    - semgrep 1.168.0 on python 3.13.14                      
+  environment - running in environment git, triggering event is unknown
+            
+  CONNECTION
+  Initializing scan (deployment=kfamaguana-personal-org, scan_id=185963240)  
+  Enabled products: Code, Supply Chain                                               
+        
+  ENGINE
+  Using Semgrep Pro Version: 1.168.0
+  Installed at 
+C:\Users\kfama\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local
+               
+               
+ÔöîÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
+Ôöé Scan Status Ôöé
+ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÿ
+  Scanning 116 files tracked by git with 2932 Code rules, 83770 Supply Chain rules:
+            
+            
+  CODE RULES
+                                                                                                                       
+ 
+  Language      Rules   Files          Origin      Rules                                                               
+ 
+ ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ        
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ                                                              
+ 
+  <multilang>      71      77          Pro rules    1872                                                               
+ 
+  ts              333      71          Community    1060                                                               
+ 
+  json              4      17                                                                                          
+ 
+  js              323       5                                                                                          
+ 
+  dockerfile        6       3                                                                                          
+ 
+  html              2       2                                                                                          
+ 
+  yaml             31       1                                                                                          
+ 
+                                                                                                                       
+ 
+                    
+  SUPPLY CHAIN RULES
+                                                                                                                       
+ 
+  Dependency Sources                    Resolution Method   Ecosystem   Dependencies   Rules                           
+ 
+ ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔ
+öÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ                           
+  apps\auth-service\package-lock.json   Lockfile            Npm         738            83770                           
+ 
+  apps\products\package-lock.json       Lockfile            Npm         734            83770                           
+ 
+  apps\frontend\package-lock.json       Lockfile            Npm         198            83770                           
+ 
+                                                                                                                       
+ 
+                                                                                                                       
+ 
+  Analysis       Rules                                                                                                 
+ 
+ ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ                                                    
+                                             
+  Malicious      76485                                                                                                 
+ 
+  Basic           5064                                                                                                 
+ 
+  Reachability    2221                                                                                                 
+ 
+                                                                                                                       
+ 
+  Uploading scan results  
+                                        
+                                        
+ÔöîÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
+Ôöé 4 Undetermined Supply Chain Findings Ôöé
+ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÿ
+                                       
+    apps\auth-service\package-lock.json
+    ÔØ»ÔØ▒ js-yaml - CVE-2026-53550
+          Severity: MODERATE                                                                
+          Affected versions of js-yaml are vulnerable to Inefficient Algorithmic Complexity.
+                                                                                            
+           ÔûÂÔûÂÔöå Fixed for js-yaml at version: 4.2.0
+          1518Ôöå "node_modules/@istanbuljs/load-nyc-config/node_modules/js-yaml": {
+   
+    ÔØ»ÔØ▒ multer - CVE-2026-5038
+          Severity: MODERATE                                               
+          Affected versions of multer are vulnerable to Incomplete Cleanup.
+                                                                           
+           ÔûÂÔûÂÔöå Fixed for multer at versions: 2.2.0, 3.0.0-alpha.2
+          7933Ôöå "node_modules/multer": {
+                                   
+    apps\products\package-lock.json
+    ÔØ»ÔØ▒ js-yaml - CVE-2026-53550
+          Severity: MODERATE                                                                
+          Affected versions of js-yaml are vulnerable to Inefficient Algorithmic Complexity.
+                                                                                            
+           ÔûÂÔûÂÔöå Fixed for js-yaml at version: 4.2.0
+          1516Ôöå "node_modules/@istanbuljs/load-nyc-config/node_modules/js-yaml": {
+   
+    ÔØ»ÔØ▒ multer - CVE-2026-5038
+          Severity: MODERATE                                               
+          Affected versions of multer are vulnerable to Incomplete Cleanup.
+                                                                           
+           ÔûÂÔûÂÔöå Fixed for multer at versions: 2.2.0, 3.0.0-alpha.2
+          7889Ôöå "node_modules/multer": {
+                                       
+                                       
+ÔöîÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
+Ôöé 3 Unreachable Supply Chain Findings Ôöé
+ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÿ
+                                       
+    apps\auth-service\package-lock.json
+   ÔØ»ÔØ»ÔØ▒ multer - CVE-2026-5079
+          Severity: HIGH                                                                                    
+          Affected versions of multer are vulnerable to Uncontrolled Resource Consumption. Multer is        
+          vulnerable to denial of service via deeply nested field names in multipart form data. The `append-
+          field` dependency parses bracket-notation field names (e.g. `a[b][c]`) without limiting nesting   
+          depth, so a single malicious multipart request can force allocation of deeply nested object       
+          structures and exhaust CPU and memory. Field parsing runs for every multipart body regardless of  
+          which middleware method is used, so any application that constructs a Multer instance to handle   
+          uploads is exposed.                                                                               
+                                                                                                            
+           ÔûÂÔûÂÔöå Fixed for multer at versions: 2.2.0, 3.0.0-alpha.2
+          7933Ôöå "node_modules/multer": {
+                                   
+    apps\products\package-lock.json
+   ÔØ»ÔØ»ÔØ▒ form-data - CVE-2026-12143
+          Severity: HIGH                                                                                      
+          Affected versions of form-data are vulnerable to Improper Neutralization of CRLF Sequences ('CRLF   
+          Injection'). form-data does not escape carriage return, line feed, or double-quote characters in the
+          field name and `filename` option passed to `FormData#append()`. These values are concatenated       
+          directly into the `Content-Disposition` header, so passing untrusted input as a field name or       
+          filename lets an attacker inject CRLF sequences and smuggle additional multipart headers/parts (e.g.
+          overriding backend-trusted fields).                                                                 
+                                                                                                              
+           ÔûÂÔûÂÔöå Fixed for form-data at versions: 2.5.6, 3.0.5, 4.0.6
+          5810Ôöå "node_modules/form-data": {
+   
+   ÔØ»ÔØ»ÔØ▒ multer - CVE-2026-5079
+          Severity: HIGH                                                                                    
+          Affected versions of multer are vulnerable to Uncontrolled Resource Consumption. Multer is        
+          vulnerable to denial of service via deeply nested field names in multipart form data. The `append-
+          field` dependency parses bracket-notation field names (e.g. `a[b][c]`) without limiting nesting   
+          depth, so a single malicious multipart request can force allocation of deeply nested object       
+          structures and exhaust CPU and memory. Field parsing runs for every multipart body regardless of  
+          which middleware method is used, so any application that constructs a Multer instance to handle   
+          uploads is exposed.                                                                               
+                                                                                                            
+           ÔûÂÔûÂÔöå Fixed for multer at versions: 2.2.0, 3.0.0-alpha.2
+          7889Ôöå "node_modules/multer": {
+                                
+                                
+ÔöîÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
+Ôöé 4 Non-blocking Code Findings Ôöé
+ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÿ
+                                                   
+    apps\analisis-vulnerabilidades\backend\index.js
+     ÔØ▒ javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage
+          A CSRF middleware was not detected in your express application. Ensure you are either using one such
+          as `csurf` or `csrf` (see rule references) and/or you are properly doing CSRF validation in your    
+          routes with a token or cookies.                                                                     
+          Details: https://sg.run/BxzR                                                                        
+                                                                                                              
+            7Ôöå const app = express();
+   
+   ÔØ»ÔØ»ÔØ»ÔØ▒ javascript.express.express-child-process.express-child-process
+          Untrusted input might be injected into a command executed by the application, which can lead to a   
+          command injection vulnerability. An attacker can execute arbitrary commands, potentially gaining    
+          complete control of the system. To prevent this vulnerability, avoid executing OS commands with user
+          input. If this is unavoidable, validate and sanitize the user input, and use safe methods for       
+          executing the commands. For more information, see [Command injection prevention for JavaScript ]    
+          (https://semgrep.dev/docs/cheat-sheets/javascript-command-injection/).                              
+          Details: https://sg.run/9p1R                                                                        
+                                                                                                              
+          156Ôöå exec(cmd, (error, stdout, stderr) => {
+    
+    
+          Taint comes from:
+    
+          149Ôöå const cmd = (req.query.cmd || '').trim();
+    
+    
+          Taint flows through these intermediate variables:
+    
+          149Ôöå const cmd = (req.query.cmd || '').trim();
+    
+          149Ôöå const cmd = (req.query.cmd || '').trim();
+    
+    
+                This is how taint reaches the sink:
+    
+          156Ôöå exec(cmd, (error, stdout, stderr) => {
+    
+    
+            Ôï«Ôöå----------------------------------------
+   
+   ÔØ»ÔØ»ÔØ▒ javascript.express.os.tainted-os-command-child-process-express.tainted-os-command-child-process-express
+          Untrusted input might be injected into a command executed by the application, which can lead to a   
+          command injection vulnerability. An attacker can execute arbitrary commands, potentially gaining    
+          complete control of the system. To prevent this vulnerability, avoid executing OS commands with user
+          input. If this is unavoidable, validate and sanitize the input, and use safe methods for executing  
+          the commands. For more information, see: [JavaScript command injection prevention]                  
+          (https://semgrep.dev/docs/cheat-sheets/javascript-command-injection/)                               
+          Details: https://sg.run/AbAz6                                                                       
+                                                                                                              
+          156Ôöå exec(cmd, (error, stdout, stderr) => {
+    
+    
+          Taint comes from:
+    
+          149Ôöå const cmd = (req.query.cmd || '').trim();
+    
+    
+          Taint flows through these intermediate variables:
+    
+          149Ôöå const cmd = (req.query.cmd || '').trim();
+    
+          149Ôöå const cmd = (req.query.cmd || '').trim();
+    
+    
+                This is how taint reaches the sink:
+    
+          156Ôöå exec(cmd, (error, stdout, stderr) => {
+    
+    
+            Ôï«Ôöå----------------------------------------
+   
+   ÔØ»ÔØ»ÔØ▒ javascript.lang.security.detect-child-process.detect-child-process
+          Detected calls to child_process from a function argument `req`. This could lead to a command  
+          injection if the input is user controllable. Try to avoid calls to child_process, and if it is
+          needed ensure user input is correctly sanitized or sandboxed.                                 
+          Details: https://sg.run/l2lo                                                                  
+                                                                                                        
+          156Ôöå exec(cmd, (error, stdout, stderr) => {
+    
+    
+          Taint comes from:
+    
+          148Ôöå app.get('/api/exec', (req, res) => {
+    
+    
+          Taint flows through these intermediate variables:
+    
+          148Ôöå app.get('/api/exec', (req, res) => {
+    
+          149Ôöå const cmd = (req.query.cmd || '').trim();
+    
+          149Ôöå const cmd = (req.query.cmd || '').trim();
+    
+    
+                This is how taint reaches the sink:
+    
+          156Ôöå exec(cmd, (error, stdout, stderr) => {
+    
+  Finalizing scan                         
+                
+ÔöîÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
+Ôöé Scan Summary Ôöé
+ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÿ
+Ô£à CI scan completed successfully.
+ ÔÇó Findings: 11 (0 blocking)
+ ÔÇó Rules run: 125943
+ ÔÇó Targets scanned: 116
+ ÔÇó Parsed lines: ~100.0%
+ ÔÇó Scan skipped: 
+   Ôùª Files matching .semgrepignore patterns: 4
+ ÔÇó Scan was limited to files tracked by git
+ ÔÇó For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+CI scan completed successfully.
+  View results in Semgrep Cloud Platform:
+    https://semgrep.dev/orgs/kfamaguana-personal-org/findings?repo=local_scan/taller-sast&ref=main
+    https://semgrep.dev/orgs/kfamaguana-personal-org/supply-chain/vulnerabilities?repo=local_scan/taller-sast&ref=main
+  No blocking findings so exiting with code 0
+

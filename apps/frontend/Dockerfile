@@ -1,5 +1,5 @@
 # Etapa de construcción
-FROM node:18-alpine AS build
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -20,4 +20,5 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
 
+USER nginx
 CMD ["nginx", "-g", "daemon off;"]

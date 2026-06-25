@@ -1,5 +1,4 @@
 version: '3.8'
-
 services:
   auth-db:
     image: postgres:17-alpine
@@ -17,6 +16,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   product-db:
     image: postgres:17-alpine
@@ -34,6 +38,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   auth-service:
     build: ./apps/auth-service     # ← ruta actualizada
@@ -55,7 +64,7 @@ services:
     restart: always
 
   product-service:
-    build: ./apps/product-service   # ← ruta actualizada
+    build: ./apps/products   # ← ruta actualizada
     container_name: product-service
     ports:
       - "3001:3000"
