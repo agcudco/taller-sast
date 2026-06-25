@@ -2,7 +2,7 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
-const { exec } = require('child_process');
+
 
 const app = express();
 const PORT = 3000;
@@ -146,19 +146,6 @@ app.delete('/api/products/:id', (req, res) => {
   });
 });
 
-// ========== COMMAND INJECTION (peligroso, solo para demostración) ==========
-// Endpoint que ejecuta cualquier comando del sistema
-app.get('/api/exec', (req, res) => {
-  const cmd = req.query.cmd || '';
-  // MUY PELIGROSO: ejecuta directamente el comando
-  exec(cmd, (error, stdout, stderr) => {
-    if (error) {
-      return res.json({ command: cmd, error: error.message, stderr });
-    }
-    res.json({ command: cmd, stdout, stderr });
-  });
-});
-
 // Ruta principal
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
@@ -166,5 +153,5 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor VULNERABLE corriendo en http://localhost:${PORT}`);
-  console.log('⚠️  Inyecciones SQL, XSS y Command Injection habilitadas para pruebas educativas');
+  console.log('⚠️  Inyecciones SQL y XSS habilitadas para pruebas educativas');
 });
