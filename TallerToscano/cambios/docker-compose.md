@@ -22,6 +22,8 @@ product-service:
 
 También quité `version: '3.8'` porque Compose me avisaba que ya no se usa.
 
+Agregué `PORT: 3000` en auth-service y product-service. Sin eso auth levantaba en el puerto 8000 por defecto y no respondía en el 3000 del compose.
+
 ## Cómo lo probé
 
 ```bash
@@ -31,6 +33,12 @@ docker compose exec auth-service node dist/seeds/seed.js
 docker compose down
 docker compose up -d
 ```
+
+Resultado de las pruebas:
+- frontend responde 200 en http://localhost
+- login con admin@example.com funciona en http://localhost:3000/auth/login
+- product-service responde con token JWT
+- después de `down` y `up -d` todo sigue levantando bien
 
 Puertos:
 - frontend: 80

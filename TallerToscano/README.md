@@ -52,10 +52,18 @@ docker compose exec auth-service node dist/seeds/seed.js
 Frontend: http://localhost  
 Usuario: admin@example.com / Admin12345
 
+Probé bajar y volver a subir y sigue funcionando:
+
 ```bash
 docker compose down
 docker compose up -d
 ```
+
+**Correcciones extra que tuve que hacer para que levante:**
+- Ruta `./apps/products` en el compose (antes decía `product-service`)
+- Variable `PORT: 3000` en auth-service y product-service (si no, auth quedaba en 8000)
+- Node 20 en los Dockerfiles (Nest 11 pide node >= 20)
+- Quité un import sin usar en `AuthContext.tsx` que rompía el build del frontend
 
 ## Resultados Semgrep
 

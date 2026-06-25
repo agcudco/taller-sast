@@ -47,6 +47,8 @@ Credenciales del README principal del repo:
 - admin@example.com / Admin12345
 - cliente@example.com / Cliente123
 
+Probé el ciclo completo y funcionó (build, seed, login, down/up).
+
 ## 6. Re-escaneo
 
 ```bash
