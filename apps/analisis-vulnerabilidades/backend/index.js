@@ -45,13 +45,14 @@ app.get('/api/categories', (req, res) => {
   });
 });
 
-// VULNERABLE A SQL INJECTION en búsqueda de categorías
+// VULNERABLE A SQL INJECTION en búsqueda de categorías - CORREGIDO usando consultas preparadas/parametrizadas
 app.get('/api/categories/search', (req, res) => {
   const searchTerm = req.query.name || '';
-  // Concatenación directa -> SQLi
-  const query = `SELECT * FROM categories WHERE name LIKE '%${searchTerm}%'`;
-  console.log('[SQLi Categories]', query);
-  db.all(query, (err, rows) => {
+  // Uso de marcadores de posición (?) para prevenir SQL Injection
+  const query = `SELECT * FROM categories WHERE name LIKE ?`;
+  const likeTerm = `%${searchTerm}%`;
+  console.log('[Remediación SQLi Categories] Ejecutando búsqueda parametrizada');
+  db.all(query, [likeTerm], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -94,12 +95,14 @@ app.get('/api/products', (req, res) => {
   });
 });
 
-// SQL Injection en productos (ya existente)
+// SQL Injection en productos (ya existente) - CORREGIDO usando consultas preparadas/parametrizadas
 app.get('/api/products/search', (req, res) => {
   const searchTerm = req.query.name || '';
-  const query = `SELECT * FROM products WHERE name LIKE '%${searchTerm}%'`;
-  console.log('[SQLi Products]', query);
-  db.all(query, (err, rows) => {
+  // Uso de marcadores de posición (?) para prevenir SQL Injection
+  const query = `SELECT * FROM products WHERE name LIKE ?`;
+  const likeTerm = `%${searchTerm}%`;
+  console.log('[Remediación SQLi Products] Ejecutando búsqueda parametrizada');
+  db.all(query, [likeTerm], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -146,17 +149,36 @@ app.delete('/api/products/:id', (req, res) => {
   });
 });
 
-// ========== COMMAND INJECTION (peligroso, solo para demostración) ==========
-// Endpoint que ejecuta cualquier comando del sistema
+// ========== COMMAND INJECTION (peligroso, solo para demostración) - CORREGIDO ==========
+// Endpoint que ejecuta comandos del sistema de forma segura (usando una lista blanca estricta)
 app.get('/api/exec', (req, res) => {
-  const cmd = req.query.cmd || '';
-  // MUY PELIGROSO: ejecuta directamente el comando
-  exec(cmd, (error, stdout, stderr) => {
-    if (error) {
-      return res.json({ command: cmd, error: error.message, stderr });
-    }
-    res.json({ command: cmd, stdout, stderr });
-  });
+  const cmd = (req.query.cmd || '').trim();
+  const allowedCommands = ['whoami', 'date', 'uptime'];
+
+  // Validación mediante lista blanca: solo permitimos comandos exactos y seguros
+  if (!allowedCommands.includes(cmd)) {
+    return res.status(400).json({ 
+      error: 'Comando denegado. Solo se permiten los siguientes comandos sin argumentos adicionales: whoami, date, uptime' 
+    });
+  }
+
+  // Ejecutamos constantes de cadena de texto directamente para que no haya riesgo de inyección
+  if (cmd === 'whoami') {
+    exec('whoami', (error, stdout, stderr) => {
+      if (error) return res.json({ command: 'whoami', error: error.message, stderr });
+      res.json({ command: 'whoami', stdout, stderr });
+    });
+  } else if (cmd === 'date') {
+    exec('date', (error, stdout, stderr) => {
+      if (error) return res.json({ command: 'date', error: error.message, stderr });
+      res.json({ command: 'date', stdout, stderr });
+    });
+  } else if (cmd === 'uptime') {
+    exec('uptime', (error, stdout, stderr) => {
+      if (error) return res.json({ command: 'uptime', error: error.message, stderr });
+      res.json({ command: 'uptime', stdout, stderr });
+    });
+  }
 });
 
 // Ruta principal
