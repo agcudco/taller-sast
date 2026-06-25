@@ -246,6 +246,8 @@ Acceder a:
 - Product Service API: http://localhost:3001
 - Análisis Vulnerabilidades: http://localhost:3002
 
+![Pantalla Final](final.png)
+
 Credenciales de prueba:
 | Rol | Email | Contraseña |
 |-----|-------|------------|

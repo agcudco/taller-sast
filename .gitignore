@@ -6,3 +6,5 @@ dist/
 *.jpg
 *.png
 *.jpeg
+!gabriel murilo/*.jpg
+!gabriel murilo/*.png
