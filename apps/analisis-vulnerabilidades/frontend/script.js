@@ -19,20 +19,27 @@ async function loadCategories(searchTerm = null) {
         select.appendChild(option);
     });
     
-    // Mostrar lista de categorías con XSS almacenado (NO se escapa el nombre)
+    // Mostrar lista de categorías con contenido sanitizado
     const container = document.getElementById('categoryList');
     container.innerHTML = '';
     categories.forEach(cat => {
         const div = document.createElement('div');
         div.className = 'list-group-item d-flex justify-content-between align-items-center';
-        // PELIGRO: innerHTML con nombre sin sanitizar -> XSS
-        div.innerHTML = `
-            <span>${cat.name}</span>
-            <div>
-                <button class="btn btn-sm btn-warning me-1" onclick="editCategory(${cat.id}, '${escapeHtml(cat.name)}')">✏️</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteCategory(${cat.id})">🗑️</button>
-            </div>
-        `;
+        const span = document.createElement('span');
+        span.textContent = cat.name;
+        div.appendChild(span);
+        const btnGroup = document.createElement('div');
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-sm btn-warning me-1';
+        editBtn.textContent = '✏️';
+        editBtn.onclick = () => editCategory(cat.id, cat.name);
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-sm btn-danger';
+        deleteBtn.textContent = '🗑️';
+        deleteBtn.onclick = () => deleteCategory(cat.id);
+        btnGroup.appendChild(editBtn);
+        btnGroup.appendChild(deleteBtn);
+        div.appendChild(btnGroup);
         container.appendChild(div);
     });
 }
@@ -91,16 +98,30 @@ async function loadProducts(searchTerm = null) {
     products.forEach(prod => {
         const div = document.createElement('div');
         div.className = 'list-group-item';
-        // XSS almacenado en productos también
-        div.innerHTML = `
-            <div class="d-flex justify-content-between">
-                <h5>${prod.name}</h5>
-                <strong>$${prod.price}</strong>
-            </div>
-            <p>${prod.description || ''}</p>
-            <button class="btn btn-sm btn-danger" onclick="deleteProduct(${prod.id})">Eliminar</button>
-            <button class="btn btn-sm btn-warning" onclick="editProduct(${prod.id})">Editar</button>
-        `;
+        const header = document.createElement('div');
+        header.className = 'd-flex justify-content-between';
+        const nameEl = document.createElement('h5');
+        nameEl.textContent = prod.name;
+        const priceEl = document.createElement('strong');
+        priceEl.textContent = `$${prod.price}`;
+        header.appendChild(nameEl);
+        header.appendChild(priceEl);
+        div.appendChild(header);
+        if (prod.description) {
+            const descEl = document.createElement('p');
+            descEl.textContent = prod.description;
+            div.appendChild(descEl);
+        }
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-sm btn-danger';
+        deleteBtn.textContent = 'Eliminar';
+        deleteBtn.onclick = () => deleteProduct(prod.id);
+        div.appendChild(deleteBtn);
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-sm btn-warning';
+        editBtn.textContent = 'Editar';
+        editBtn.onclick = () => editProduct(prod.id);
+        div.appendChild(editBtn);
         container.appendChild(div);
     });
 }
@@ -146,26 +167,6 @@ document.getElementById('resetProductBtn').addEventListener('click', () => {
     document.getElementById('searchProductInput').value = '';
     loadProducts();
 });
-
-// ==================== COMMAND INJECTION ====================
-document.getElementById('execCmdBtn').addEventListener('click', async () => {
-    const cmd = document.getElementById('cmdInput').value;
-    const res = await fetch(`${API_URL}/exec?cmd=${encodeURIComponent(cmd)}`);
-    const data = await res.json();
-    const output = data.stdout || data.stderr || data.error || 'Sin salida';
-    document.getElementById('cmdOutput').innerText = `Comando: ${cmd}\n\n${output}`;
-});
-
-// Helper para escapar solo en botones (para que no rompa el onclick)
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
-}
 
 // Inicializar
 loadCategories();

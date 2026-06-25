@@ -1,5 +1,8 @@
 # Etapa de construcción
-FROM node:18-alpine AS build
+FROM node:22-alpine AS build
+
+ARG VITE_AUTH_URL=http://localhost:3000
+ARG VITE_PRODUCT_URL=http://localhost:3001
 
 WORKDIR /app
 

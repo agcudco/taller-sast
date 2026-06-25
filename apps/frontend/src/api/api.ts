@@ -1,5 +1,5 @@
-const BASE_AUTH = 'http://localhost:3000';
-const BASE_PRODUCT = 'http://localhost:3001';
+const BASE_AUTH = import.meta.env.VITE_AUTH_URL || 'http://localhost:3000';
+const BASE_PRODUCT = import.meta.env.VITE_PRODUCT_URL || 'http://localhost:3001';
 
 function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem('access_token');

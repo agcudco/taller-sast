@@ -75,21 +75,14 @@
                 </div>
             </div>
 
-            <!-- COMMAND INJECTION -->
+            <!-- COMMAND INJECTION (deshabilitado por seguridad) -->
             <div class="tab-pane fade" id="comandos">
                 <div class="card">
-                    <div class="card-header bg-dark text-white">💀 Command Injection - Ejecuta comandos en el servidor
-                    </div>
+                    <div class="card-header bg-dark text-white">💀 Command Injection - Deshabilitado</div>
                     <div class="card-body">
-                        <div class="input-group mb-3">
-                            <input type="text" id="cmdInput" class="form-control"
-                                placeholder="Ej: whoami, dir, ls, cat /etc/passwd">
-                            <button id="execCmdBtn" class="btn btn-danger">Ejecutar comando</button>
-                        </div>
-                        <pre id="cmdOutput" class="bg-light p-3 border rounded" style="min-height: 150px;"></pre>
-                        <div class="alert alert-warning small">
-                            ⚠️ Endpoint vulnerable: <code>/api/exec?cmd=whoami</code><br>
-                            Prueba: <code>whoami</code> , <code>dir</code> (Windows) o <code>ls -la</code> (Linux/Mac)
+                        <div class="alert alert-info">
+                            Esta funcionalidad ha sido deshabilitada por razones de seguridad.
+                            El endpoint /api/exec ha sido eliminado para prevenir la ejecución remota de comandos.
                         </div>
                     </div>
                 </div>

@@ -2,13 +2,22 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
-const { exec } = require('child_process');
+
 
 const app = express();
 const PORT = 3000;
 
 // Configuración insegura
-app.use(cors({ origin: '*' }));
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173', 'http://localhost'];
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+}));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
@@ -45,13 +54,12 @@ app.get('/api/categories', (req, res) => {
   });
 });
 
-// VULNERABLE A SQL INJECTION en búsqueda de categorías
+// Corregido: usa parámetros para evitar SQL Injection
 app.get('/api/categories/search', (req, res) => {
   const searchTerm = req.query.name || '';
-  // Concatenación directa -> SQLi
-  const query = `SELECT * FROM categories WHERE name LIKE '%${searchTerm}%'`;
-  console.log('[SQLi Categories]', query);
-  db.all(query, (err, rows) => {
+  const query = `SELECT * FROM categories WHERE name LIKE ?`;
+  console.log('[SQLi Categories]', query, searchTerm);
+  db.all(query, [`%${searchTerm}%`], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -94,12 +102,12 @@ app.get('/api/products', (req, res) => {
   });
 });
 
-// SQL Injection en productos (ya existente)
+// Corregido: usa parámetros para evitar SQL Injection
 app.get('/api/products/search', (req, res) => {
   const searchTerm = req.query.name || '';
-  const query = `SELECT * FROM products WHERE name LIKE '%${searchTerm}%'`;
-  console.log('[SQLi Products]', query);
-  db.all(query, (err, rows) => {
+  const query = `SELECT * FROM products WHERE name LIKE ?`;
+  console.log('[SQLi Products]', query, searchTerm);
+  db.all(query, [`%${searchTerm}%`], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -146,19 +154,6 @@ app.delete('/api/products/:id', (req, res) => {
   });
 });
 
-// ========== COMMAND INJECTION (peligroso, solo para demostración) ==========
-// Endpoint que ejecuta cualquier comando del sistema
-app.get('/api/exec', (req, res) => {
-  const cmd = req.query.cmd || '';
-  // MUY PELIGROSO: ejecuta directamente el comando
-  exec(cmd, (error, stdout, stderr) => {
-    if (error) {
-      return res.json({ command: cmd, error: error.message, stderr });
-    }
-    res.json({ command: cmd, stdout, stderr });
-  });
-});
-
 // Ruta principal
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
@@ -166,5 +161,5 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor VULNERABLE corriendo en http://localhost:${PORT}`);
-  console.log('⚠️  Inyecciones SQL, XSS y Command Injection habilitadas para pruebas educativas');
+  console.log('⚠️  Vulnerabilidades corregidas: Command Injection eliminado, XSS sanitizado, CORS restringido');
 });
