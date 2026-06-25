@@ -41,6 +41,8 @@ services:
     ports:
       - "3000:3000"
     environment:
+      PORT: 3000
+      ALLOWED_ORIGINS: http://localhost:3005,http://localhost:3000,http://localhost:3001,http://localhost:5173
       DB_HOST: auth-db
       DB_PORT: 5432
       DB_USER: postgres
@@ -55,11 +57,13 @@ services:
     restart: always
 
   product-service:
-    build: ./apps/product-service   # ← ruta actualizada
+    build: ./apps/products   # ← ruta actualizada
     container_name: product-service
     ports:
       - "3001:3000"
     environment:
+      PORT: 3000
+      ALLOWED_ORIGINS: http://localhost:3005,http://localhost:3000,http://localhost:3001,http://localhost:5173
       DB_HOST: product-db
       DB_PORT: 5432
       DB_USER: postgres
@@ -75,7 +79,7 @@ services:
     build: ./apps/frontend          # ← ruta actualizada
     container_name: frontend
     ports:
-      - "80:80"
+      - "3005:80"
     depends_on:
       - auth-service
       - product-service
