@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  auth-db:
+    image: postgres:17-alpine          # ← última versión
+    container_name: auth-db
+    environment:
+      POSTGRES_DB: auth_service
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"   # solo para desarrollo
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d auth_service"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  product-db:
+    image: postgres:17-alpine          # ← última versión
+    container_name: product-db
+    environment:
+      POSTGRES_DB: product_service
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - product-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d product_service"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: auth-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: auth_service
+      JWT_SECRET: ClaveSecretaMuySeguraCambiarEnProduccion
+      JWT_EXPIRATION: 10m
+      REFRESH_EXPIRATION: 7d
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    restart: always
+
+  product-service:
+    build: ./product-service
+    container_name: product-service
+    ports:
+      - "3001:3000"
+    environment:
+      DB_HOST: product-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: product_service
+      JWT_SECRET: ClaveSecretaMuySeguraCambiarEnProduccion
+    depends_on:
+      product-db:
+        condition: service_healthy
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - auth-service
+      - product-service
+
+volumes:
+  auth-db-data:
+  product-db-data:
