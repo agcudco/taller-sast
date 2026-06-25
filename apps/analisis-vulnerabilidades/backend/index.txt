@@ -1,26 +1,20 @@
+INDEX ANTERIOR CON VULNERABILIDADES
+
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
-const cookieParser = require('cookie-parser');
-const csrf = require('csurf'); // Requiere instalación: npm install cookie-parser csurf
+const { exec } = require('child_process');
 
 const app = express();
 const PORT = 3000;
 
-
-app.use(cors({ origin: 'http://localhost:3000' })); 
+// Configuración insegura
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-app.use(cookieParser());
-const csrfProtection = csrf({ cookie: true });
-
-app.get('/api/csrf-token', csrfProtection, (req, res) => {
-  res.json({ csrfToken: req.csrfToken() });
-});
-
-
+// Base de datos
 const db = new sqlite3.Database(path.join(__dirname, '../database.db'));
 
 db.serialize(() => {
@@ -36,14 +30,16 @@ db.serialize(() => {
     category_id INTEGER,
     FOREIGN KEY (category_id) REFERENCES categories(id)
   )`);
-  
+  // Datos de ejemplo
   db.run(`INSERT OR IGNORE INTO categories (id, name) VALUES (1, 'Electrónica')`);
   db.run(`INSERT OR IGNORE INTO categories (id, name) VALUES (2, 'Ropa')`);
   db.run(`INSERT OR IGNORE INTO products (id, name, price, category_id) VALUES (1, 'Smartphone', 299.99, 1)`);
   db.run(`INSERT OR IGNORE INTO products (id, name, price, category_id) VALUES (2, 'Camiseta', 19.99, 2)`);
 });
 
+// ========== CATEGORÍAS (VULNERABLES) ==========
 
+// Listar todas las categorías (se mostrarán sin escapar en el frontend -> XSS almacenado)
 app.get('/api/categories', (req, res) => {
   db.all('SELECT * FROM categories', (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -51,17 +47,20 @@ app.get('/api/categories', (req, res) => {
   });
 });
 
+// VULNERABLE A SQL INJECTION en búsqueda de categorías
 app.get('/api/categories/search', (req, res) => {
   const searchTerm = req.query.name || '';
-  const query = 'SELECT * FROM categories WHERE name LIKE ?';
-  
-  db.all(query, [`%${searchTerm}%`], (err, rows) => {
+  // Concatenación directa -> SQLi
+  const query = `SELECT * FROM categories WHERE name LIKE '%${searchTerm}%'`;
+  console.log('[SQLi Categories]', query);
+  db.all(query, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
-app.post('/api/categories', csrfProtection, (req, res) => {
+// Crear categoría (el nombre se guarda sin sanitizar -> XSS almacenado)
+app.post('/api/categories', (req, res) => {
   const { name } = req.body;
   db.run('INSERT INTO categories (name) VALUES (?)', [name], function(err) {
     if (err) return res.status(500).json({ error: err.message });
@@ -69,7 +68,8 @@ app.post('/api/categories', csrfProtection, (req, res) => {
   });
 });
 
-app.put('/api/categories/:id', csrfProtection, (req, res) => {
+// Actualizar categoría
+app.put('/api/categories/:id', (req, res) => {
   const { name } = req.body;
   const { id } = req.params;
   db.run('UPDATE categories SET name = ? WHERE id = ?', [name, id], function(err) {
@@ -78,7 +78,8 @@ app.put('/api/categories/:id', csrfProtection, (req, res) => {
   });
 });
 
-app.delete('/api/categories/:id', csrfProtection, (req, res) => {
+// Eliminar categoría
+app.delete('/api/categories/:id', (req, res) => {
   const { id } = req.params;
   db.run('DELETE FROM categories WHERE id = ?', id, function(err) {
     if (err) return res.status(500).json({ error: err.message });
@@ -86,6 +87,7 @@ app.delete('/api/categories/:id', csrfProtection, (req, res) => {
   });
 });
 
+// ========== PRODUCTOS (VULNERABILIDADES) ==========
 
 app.get('/api/products', (req, res) => {
   db.all('SELECT * FROM products', (err, rows) => {
@@ -94,11 +96,12 @@ app.get('/api/products', (req, res) => {
   });
 });
 
+// SQL Injection en productos (ya existente)
 app.get('/api/products/search', (req, res) => {
   const searchTerm = req.query.name || '';
-  const query = 'SELECT * FROM products WHERE name LIKE ?';
-  
-  db.all(query, [`%${searchTerm}%`], (err, rows) => {
+  const query = `SELECT * FROM products WHERE name LIKE '%${searchTerm}%'`;
+  console.log('[SQLi Products]', query);
+  db.all(query, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -112,7 +115,7 @@ app.get('/api/products/:id', (req, res) => {
   });
 });
 
-app.post('/api/products', csrfProtection, (req, res) => {
+app.post('/api/products', (req, res) => {
   const { name, description, price, category_id } = req.body;
   db.run(
     'INSERT INTO products (name, description, price, category_id) VALUES (?, ?, ?, ?)',
@@ -124,7 +127,7 @@ app.post('/api/products', csrfProtection, (req, res) => {
   );
 });
 
-app.put('/api/products/:id', csrfProtection, (req, res) => {
+app.put('/api/products/:id', (req, res) => {
   const { name, description, price, category_id } = req.body;
   const { id } = req.params;
   db.run(
@@ -137,7 +140,7 @@ app.put('/api/products/:id', csrfProtection, (req, res) => {
   );
 });
 
-app.delete('/api/products/:id', csrfProtection, (req, res) => {
+app.delete('/api/products/:id', (req, res) => {
   const { id } = req.params;
   db.run('DELETE FROM products WHERE id = ?', id, function(err) {
     if (err) return res.status(500).json({ error: err.message });
@@ -145,13 +148,25 @@ app.delete('/api/products/:id', csrfProtection, (req, res) => {
   });
 });
 
-// 5. FIX: Se eliminó completamente la ruta /api/exec (Command Injection)
+// ========== COMMAND INJECTION (peligroso, solo para demostración) ==========
+// Endpoint que ejecuta cualquier comando del sistema
+app.get('/api/exec', (req, res) => {
+  const cmd = req.query.cmd || '';
+  // MUY PELIGROSO: ejecuta directamente el comando
+  exec(cmd, (error, stdout, stderr) => {
+    if (error) {
+      return res.json({ command: cmd, error: error.message, stderr });
+    }
+    res.json({ command: cmd, stdout, stderr });
+  });
+});
 
 // Ruta principal
-app.get('/', csrfProtection, (req, res) => {
+app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor seguro corriendo en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor VULNERABLE corriendo en http://localhost:${PORT}`);
+  console.log('⚠️  Inyecciones SQL, XSS y Command Injection habilitadas para pruebas educativas');
 });
