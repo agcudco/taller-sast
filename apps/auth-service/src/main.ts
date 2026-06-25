@@ -10,7 +10,7 @@ async function bootstrap() {
   app.use(helmet());
 
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http:localhost:3000'],
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
     methods: ['GET,PUT,POST,DELETE'],
     credentials: true,
   });
@@ -26,7 +26,7 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(process.env.PORT ?? 8000);
+  await app.listen(process.env.PORT ?? 3000);
   console.log(`Application is running on: ${await app.getUrl()}`);
 
 }
