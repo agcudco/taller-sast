@@ -37,7 +37,7 @@ export const Login = () => {
           </div>
           <div className="field">
             <label htmlFor="password">Contraseña</label>
-            <Password id="password" value={password} onChange={(e) => setPassword(e.target.value)} feedback={false} toggleMask />
+            <Password id="password" value={password} onChange={(e) => setPassword(e.target.value)} feedback={false} toggleMask inputClassName="w-full" />
           </div>
           <Button label="Entrar" type="submit" />
         </form>

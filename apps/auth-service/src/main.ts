@@ -10,8 +10,12 @@ async function bootstrap() {
   app.use(helmet());
 
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http:localhost:3000'],
-    methods: ['GET,PUT,POST,DELETE'],
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+      'http://localhost',
+      'http://127.0.0.1',
+      'http://localhost:3000',
+    ],
+    methods: ['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
   });
 

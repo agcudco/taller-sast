@@ -13,10 +13,14 @@ async function bootstrap() {
 
   //CORS restringido
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(','),
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    credentials: false
-  })
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+      'http://localhost',
+      'http://127.0.0.1',
+      'http://localhost:3000',
+    ],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: false,
+  });
 
 
 

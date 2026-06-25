@@ -48,6 +48,7 @@ services:
       JWT_SECRET: ClaveSecretaMuySeguraCambiarEnProduccion
       JWT_EXPIRATION: 10m
       REFRESH_EXPIRATION: 7d
+      ALLOWED_ORIGINS: http://localhost,http://127.0.0.1
     depends_on:
       auth-db:
         condition: service_healthy
@@ -66,6 +67,7 @@ services:
       DB_PASS: postgres
       DB_NAME: product_service
       JWT_SECRET: ClaveSecretaMuySeguraCambiarEnProduccion
+      ALLOWED_ORIGINS: http://localhost,http://127.0.0.1
     depends_on:
       product-db:
         condition: service_healthy
