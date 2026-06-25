@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   auth-db:
     image: postgres:17-alpine
@@ -55,7 +53,7 @@ services:
     restart: always
 
   product-service:
-    build: ./apps/product-service   # ← ruta actualizada
+    build: ./apps/products   # ← ruta actualizada
     container_name: product-service
     ports:
       - "3001:3000"
