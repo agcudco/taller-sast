@@ -2,7 +2,8 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
-const { exec } = require('child_process');
+
+
 
 const app = express();
 const PORT = 3000;
@@ -146,18 +147,37 @@ app.delete('/api/products/:id', (req, res) => {
   });
 });
 
-// ========== COMMAND INJECTION (peligroso, solo para demostración) ==========
-// Endpoint que ejecuta cualquier comando del sistema
+// ========== COMMAND INJECTION CORREGIDO ==========
+// Lista blanca de comandos permitidos (ningún input del usuario se pasa al shell)
+const ALLOWED_COMMANDS = {
+  date:    { cmd: 'date',   args: [] },
+  uptime:  { cmd: 'uptime', args: [] },
+  whoami:  { cmd: 'whoami', args: [] },
+};
+
+const { execFile } = require('child_process');
+
 app.get('/api/exec', (req, res) => {
-  const cmd = req.query.cmd || '';
-  // MUY PELIGROSO: ejecuta directamente el comando
-  exec(cmd, (error, stdout, stderr) => {
+  const cmdKey = (req.query.cmd || '').toString().trim();
+
+  // Validar contra lista blanca — rechaza cualquier otro valor
+  if (!Object.prototype.hasOwnProperty.call(ALLOWED_COMMANDS, cmdKey)) {
+    return res.status(400).json({
+      error: 'Comando no permitido. Comandos válidos: ' + Object.keys(ALLOWED_COMMANDS).join(', ')
+    });
+  }
+
+  const { cmd, args } = ALLOWED_COMMANDS[cmdKey];
+
+  // execFile NO invoca el shell — los argumentos nunca se interpolan
+  execFile(cmd, args, { timeout: 5000 }, (error, stdout, stderr) => {
     if (error) {
-      return res.json({ command: cmd, error: error.message, stderr });
+      return res.status(500).json({ error: 'Error al ejecutar el comando.' });
     }
-    res.json({ command: cmd, stdout, stderr });
+    res.json({ command: cmdKey, stdout, stderr });
   });
 });
+
 
 // Ruta principal
 app.get('/', (req, res) => {

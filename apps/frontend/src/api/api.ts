@@ -1,5 +1,5 @@
-const BASE_AUTH = 'http://localhost:3000';
-const BASE_PRODUCT = 'http://localhost:3001';
+const BASE_AUTH = '/api/auth';
+const BASE_PRODUCT = '/api/products';
 
 function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem('access_token');
