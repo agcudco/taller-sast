@@ -20,13 +20,13 @@
 
 ### Critical — 5 hallazgos
 
-| ID | Regla | Archivo | Línea | Confianza |
-|----|-------|---------|:-----:|:---------:|
-| 864564387 | [express-child-process](https://semgrep.dev/orgs/ciloor2_espe_edu_ec/findings/864564387) | `apps/analisis-vulnerabilidades/backend/index.js` | 154 | Medium |
-| 864564386 | [express-sqlite-sqli](https://semgrep.dev/orgs/ciloor2_espe_edu_ec/findings/864564386) | `apps/analisis-vulnerabilidades/backend/index.js` | 54 | High |
-| 864564385 | [express-sqlite-sqli](https://semgrep.dev/orgs/ciloor2_espe_edu_ec/findings/864564385) | `apps/analisis-vulnerabilidades/backend/index.js` | 102 | High |
-| 864564384 | [sqlite-express](https://semgrep.dev/orgs/ciloor2_espe_edu_ec/findings/864564384) | `apps/analisis-vulnerabilidades/backend/index.js` | 54 | High |
-| 864564383 | [sqlite-express](https://semgrep.dev/orgs/ciloor2_espe_edu_ec/findings/864564383) | `apps/analisis-vulnerabilidades/backend/index.js` | 102 | High |
+| ID        | Regla                                                                                    | Archivo                                           | Línea | Confianza |
+| -----------| ------------------------------------------------------------------------------------------| ---------------------------------------------------| :-----:| :---------:|
+| 864564387 | [express-child-process](https://semgrep.dev/orgs/ciloor2_espe_edu_ec/findings/864564387) | `apps/analisis-vulnerabilidades/backend/index.js` | 154   | Medium    |
+| 864564386 | [express-sqlite-sqli](https://semgrep.dev/orgs/ciloor2_espe_edu_ec/findings/864564386)   | `apps/analisis-vulnerabilidades/backend/index.js` | 54    | High      |
+| 864564385 | [express-sqlite-sqli](https://semgrep.dev/orgs/ciloor2_espe_edu_ec/findings/864564385)   | `apps/analisis-vulnerabilidades/backend/index.js` | 102   | High      |
+| 864564384 | [sqlite-express](https://semgrep.dev/orgs/ciloor2_espe_edu_ec/findings/864564384)        | `apps/analisis-vulnerabilidades/backend/index.js` | 54    | High      |
+| 864564383 | [sqlite-express](https://semgrep.dev/orgs/ciloor2_espe_edu_ec/findings/864564383)        | `apps/analisis-vulnerabilidades/backend/index.js` | 102   | High      |
 
 #### Command Injection — `index.js:154`
 > **Regla:** `express-child-process`  
