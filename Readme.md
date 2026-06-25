@@ -17,6 +17,12 @@ Para crear los usuarios iniciales (operador y cliente), ejecuta la semilla:
 ```
 docker-compose exec auth-service node dist/seeds/seed.js
 ```
+Accede al frontend en http://localhost y utiliza las credenciales:
+
+| Rol       | Email                | Contraseña   |
+|-----------|----------------------|--------------|
+| Operador  | admin@example.com    | Admin12345   |
+| Cliente   | cliente@example.com  | Cliente123   |
 
 Detener servicios
 ```
