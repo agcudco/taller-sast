@@ -48,10 +48,17 @@ app.get('/api/categories', (req, res) => {
 // VULNERABLE A SQL INJECTION en búsqueda de categorías
 app.get('/api/categories/search', (req, res) => {
   const searchTerm = req.query.name || '';
-  // Concatenación directa -> SQLi
-  const query = `SELECT * FROM categories WHERE name LIKE '%${searchTerm}%'`;
-  console.log('[SQLi Categories]', query);
-  db.all(query, (err, rows) => {
+
+  const query = `
+    SELECT * FROM categories
+    WHERE name LIKE ?
+  `;
+
+  const param = `%${searchTerm}%`;
+
+  console.log('[SQLi Categories FIXED]', query);
+
+  db.all(query, [param], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });

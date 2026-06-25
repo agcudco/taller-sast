@@ -1,5 +1,6 @@
+# docker build -t backend-app:latest ./apps/products
 # Etapa de construcción
-FROM node:18-alpine AS build
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -9,7 +10,7 @@ COPY . .
 RUN npm run build
 
 # Etapa de producción
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 

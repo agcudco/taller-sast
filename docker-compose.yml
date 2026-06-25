@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   auth-db:
     image: postgres:17-alpine
@@ -36,7 +34,7 @@ services:
       retries: 5
 
   auth-service:
-    build: ./apps/auth-service     # ← ruta actualizada
+    image: frontend-app:latest     # ← ruta actualizada
     container_name: auth-service
     ports:
       - "3000:3000"
@@ -55,7 +53,7 @@ services:
     restart: always
 
   product-service:
-    build: ./apps/product-service   # ← ruta actualizada
+    image: backend-app:latest  # ← ruta actualizada
     container_name: product-service
     ports:
       - "3001:3000"
