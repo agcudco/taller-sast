@@ -41,6 +41,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      PORT: 3000
       DB_HOST: auth-db
       DB_PORT: 5432
       DB_USER: postgres
@@ -55,11 +56,12 @@ services:
     restart: always
 
   product-service:
-    build: ./apps/product-service   # ← ruta actualizada
+    build: ./apps/products          # ← Corregido: carpeta es 'products' no 'product-service'
     container_name: product-service
     ports:
       - "3001:3000"
     environment:
+      PORT: 3000
       DB_HOST: product-db
       DB_PORT: 5432
       DB_USER: postgres
