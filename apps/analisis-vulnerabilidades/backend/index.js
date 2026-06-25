@@ -46,12 +46,12 @@ app.get('/api/categories', (req, res) => {
 });
 
 // VULNERABLE A SQL INJECTION en búsqueda de categorías
+// CORREGIDO: SQL Injection mitigada con query parametrizada
 app.get('/api/categories/search', (req, res) => {
   const searchTerm = req.query.name || '';
-  // Concatenación directa -> SQLi
-  const query = `SELECT * FROM categories WHERE name LIKE '%${searchTerm}%'`;
-  console.log('[SQLi Categories]', query);
-  db.all(query, (err, rows) => {
+  // Query parametrizada: el valor del usuario nunca se concatena al SQL
+  const query = 'SELECT * FROM categories WHERE name LIKE ?';
+  db.all(query, [`%${searchTerm}%`], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });

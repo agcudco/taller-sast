@@ -8,17 +8,14 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   //cabeceres de seguridad
-  app.use(helmet())
-
+  app.use(helmet());
 
   //CORS restringido
   app.enableCors({
     origin: process.env.ALLOWED_ORIGINS?.split(','),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    credentials: false
-  })
-
-
+    credentials: false,
+  });
 
   // Filtro global de excepciones
   app.useGlobalFilters(new AllExceptionsFilter());
@@ -30,11 +27,11 @@ async function bootstrap() {
       forbidNonWhitelisted: true, //rechaza peticiones con campos desconocidos
       transform: true, //convierte automaticamente los tipos
       transformOptions: { enableImplicitConversion: true }, //convierte tipos automaticamente
-    })
-  )
+    }),
+  );
 
+  await app.listen(process.env.PORT ?? 3000);
 
-  await app.listen(process.env.PORT ?? 3001);
-  console.log('Application is running on port', process.env.PORT ?? 3001)
+  console.log('Application is running on port', process.env.PORT ?? 3001);
 }
 bootstrap();
