@@ -13,5 +13,6 @@ ANTES:
 ![alt text](image-3.png)
 
 AHORA:
+
 ![alt text](image-2.png)
 
