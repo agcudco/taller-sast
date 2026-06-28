@@ -41,6 +41,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      PORT: 3000
       DB_HOST: auth-db
       DB_PORT: 5432
       DB_USER: postgres
@@ -49,6 +50,7 @@ services:
       JWT_SECRET: ClaveSecretaMuySeguraCambiarEnProduccion
       JWT_EXPIRATION: 10m
       REFRESH_EXPIRATION: 7d
+      ALLOWED_ORIGINS: http://localhost
     depends_on:
       auth-db:
         condition: service_healthy
@@ -60,12 +62,14 @@ services:
     ports:
       - "3001:3000"
     environment:
+      PORT: 3000
       DB_HOST: product-db
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASS: postgres
       DB_NAME: product_service
       JWT_SECRET: ClaveSecretaMuySeguraCambiarEnProduccion
+      ALLOWED_ORIGINS: http://localhost
     depends_on:
       product-db:
         condition: service_healthy
