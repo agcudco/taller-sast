@@ -39,6 +39,8 @@ services:
     ports:
       - "3000:3000"
     environment:
+      PORT: 3000
+      ALLOWED_ORIGINS: http://localhost
       DB_HOST: auth-db
       DB_PORT: 5432
       DB_USER: postgres
@@ -58,6 +60,8 @@ services:
     ports:
       - "3001:3000"
     environment:
+      PORT: 3000
+      ALLOWED_ORIGINS: http://localhost
       DB_HOST: product-db
       DB_PORT: 5432
       DB_USER: postgres

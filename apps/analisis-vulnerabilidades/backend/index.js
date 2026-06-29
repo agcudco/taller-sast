@@ -150,8 +150,21 @@ app.delete('/api/products/:id', (req, res) => {
 // Endpoint que ejecuta cualquier comando del sistema
 app.get('/api/exec', (req, res) => {
   const cmd = req.query.cmd || '';
-  // MUY PELIGROSO: ejecuta directamente el comando
-  exec(cmd, (error, stdout, stderr) => {
+  
+  // Mitigación: Uso de lista blanca estricta y asignación directa de literales fijos
+  // para romper el flujo de datos no confiables (taint flow) hacia exec.
+  let safeCmd = '';
+  if (cmd === 'whoami') {
+    safeCmd = 'whoami';
+  } else if (cmd === 'hostname') {
+    safeCmd = 'hostname';
+  } else if (cmd === 'date') {
+    safeCmd = 'date';
+  } else {
+    return res.status(400).json({ error: 'Comando no permitido. Solo se permiten: whoami, hostname, date.' });
+  }
+
+  exec(safeCmd, (error, stdout, stderr) => {
     if (error) {
       return res.json({ command: cmd, error: error.message, stderr });
     }
