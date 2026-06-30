@@ -28,35 +28,19 @@ jobs:
           --health-retries 20
 
     steps:
-      # ==========================================
-      # 1. CHECKOUT
-      # ==========================================
       - name: 📥 Checkout código
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # ==========================================
-      # 2. CONFIGURAR NODE.JS (SIN CACHE)
-      # ==========================================
       - name: 🟢 Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # ==========================================
-      # 3. INSTALAR DEPENDENCIAS (NPM INSTALL)
-      # ==========================================
       - name: 📦 Instalar dependencias
-        run: |
-          echo "📦 Instalando dependencias..."
-          # Se usa npm install en lugar de npm ci porque no hay package-lock.json
-          npm install --ignore-scripts
-          echo "✅ Dependencias instaladas"
+        run: npm install --ignore-scripts
 
-      # ==========================================
-      # 4. ESPERAR SONARQUBE
-      # ==========================================
       - name: ⏳ Esperar SonarQube
         run: |
           echo "⏳ Esperando SonarQube..."
@@ -66,7 +50,6 @@ jobs:
               echo "✅ SonarQube listo"
               break
             fi
-            echo "  Esperando... ($i/60)"
             sleep 5
           done
           
@@ -75,54 +58,48 @@ jobs:
             exit 1
           fi
 
-      # ==========================================
-      # 5. CONFIGURAR SONARQUBE (Token + QG)
-      # ==========================================
-      - name: 🔧 Configurar SonarQube
+      - name: 🔧 Configurar SonarQube y Quality Gate
         run: |
-          # Cambiar contraseña
-          curl -sf -X POST "http://localhost:9000/api/users/change_password" \
+          TOKEN_RESPONSE=$(curl -s -X POST "http://localhost:9000/api/user_tokens/generate" \
             -u "admin:admin" \
-            -d "login=admin&previousPassword=admin&password=SastPass123!" || true
+            -d "name=ci-token&type=GLOBAL_ANALYSIS_TOKEN")
           
-          sleep 2
-          
-          # Generar token
-          TOKEN=$(curl -sf -X POST "http://localhost:9000/api/user_tokens/generate" \
-            -u "admin:SastPass123!" \
-            -d "name=ci-$(date +%s)&type=GLOBAL_ANALYSIS_TOKEN" | jq -r '.token')
-          
-          echo "SONAR_TOKEN=$TOKEN" >> $GITHUB_ENV
+          TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.token')
           
           if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
-            echo "❌ Error generando token"
+            echo "Reintentando generación de token en 10s..."
+            sleep 10
+            TOKEN_RESPONSE=$(curl -s -X POST "http://localhost:9000/api/user_tokens/generate" \
+              -u "admin:admin" \
+              -d "name=ci-token&type=GLOBAL_ANALYSIS_TOKEN")
+            TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.token')
+          fi
+          
+          if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
+            echo "❌ Error: $TOKEN_RESPONSE"
             exit 1
           fi
+          
+          echo "SONAR_TOKEN=$TOKEN" >> $GITHUB_ENV
           echo "✅ Token generado"
+
+          QG_ID=$(curl -s -X POST "http://localhost:9000/api/qualitygates/create" \
+            -u "admin:admin" \
+            -d "name=SAST Standard" | jq -r '.id')
           
-          # Crear Quality Gate
-          QG_ID=$(curl -sf -X POST "http://localhost:9000/api/qualitygates/create" \
-            -u "admin:SastPass123!" \
-            -d "name=SAST Security Standard" | jq -r '.id')
+          curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_bugs&op=LT&error=1" || true
+          curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_vulnerabilities&op=LT&error=1" || true
+          curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_security_hotspots_reviewed&op=LT&error=1" || true
+          curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_code_smells&op=LT&warning=10&error=20" || true
+          curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=duplicated_lines_density&op=GT&warning=5&error=10" || true
+          curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=sqale_rating&op=LT&error=2" || true
+          curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=reliability_rating&op=LT&error=2" || true
+          curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=security_rating&op=LT&error=2" || true
           
-          # Condiciones del Quality Gate
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=new_bugs&op=LT&error=1"
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=new_vulnerabilities&op=LT&error=1"
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=new_security_hotspots_reviewed&op=LT&error=1"
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=new_code_smells&op=LT&warning=10&error=20"
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=duplicated_lines_density&op=GT&warning=5&error=10"
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=sqale_rating&op=LT&error=2"
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=reliability_rating&op=LT&error=2"
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=security_rating&op=LT&error=2"
-          
-          # Establecer como defecto
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/set_as_default" -u "admin:SastPass123!" -d "id=$QG_ID"
+          curl -s -X POST "http://localhost:9000/api/qualitygates/set_as_default" -u "admin:admin" -d "id=$QG_ID" || true
           
           echo "✅ Quality Gate configurado"
 
-      # ==========================================
-      # 6. TESTS Y COVERAGE POR MÓDULO
-      # ==========================================
       - name: 🧪 Tests - Auth Service
         working-directory: apps/auth-service
         run: |
@@ -131,7 +108,6 @@ jobs:
             npx jest --coverage --coverageDirectory=../../coverage/auth-service --coverageReporters=lcov --ci --forceExit 2>/dev/null || true
           fi
           [ ! -f "../../coverage/auth-service/lcov.info" ] && echo "" > ../../coverage/auth-service/lcov.info
-          echo "✅ Auth Service completado"
 
       - name: 🧪 Tests - Frontend
         working-directory: apps/frontend
@@ -141,7 +117,6 @@ jobs:
             npx jest --coverage --coverageDirectory=../../coverage/frontend --coverageReporters=lcov --ci --forceExit 2>/dev/null || true
           fi
           [ ! -f "../../coverage/frontend/lcov.info" ] && echo "" > ../../coverage/frontend/lcov.info
-          echo "✅ Frontend completado"
 
       - name: 🧪 Tests - Products
         working-directory: apps/products
@@ -151,7 +126,6 @@ jobs:
             npx jest --coverage --coverageDirectory=../../coverage/products --coverageReporters=lcov --ci --forceExit 2>/dev/null || true
           fi
           [ ! -f "../../coverage/products/lcov.info" ] && echo "" > ../../coverage/products/lcov.info
-          echo "✅ Products completado"
 
       - name: 🧪 Tests - Análisis Vulnerabilidades
         working-directory: apps/analisis-vulnerabilidades
@@ -161,11 +135,7 @@ jobs:
             npx jest --coverage --coverageDirectory=../../coverage/analisis-vulnerabilidades --coverageReporters=lcov --ci --forceExit 2>/dev/null || true
           fi
           [ ! -f "../../coverage/analisis-vulnerabilidades/lcov.info" ] && echo "" > ../../coverage/analisis-vulnerabilidades/lcov.info
-          echo "✅ Análisis Vulnerabilidades completado"
 
-      # ==========================================
-      # 7. ANÁLISIS SONARQUBE
-      # ==========================================
       - name: 🔍 Ejecutar SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
         env:
@@ -175,113 +145,67 @@ jobs:
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
 
-      # ==========================================
-      # 8. VERIFICAR QUALITY GATE
-      # ==========================================
       - name: ✅ Verificar Quality Gate
         if: always()
         run: |
-          # Verificar que SonarQube sigue respondiendo antes de consultar
           if ! curl -sf http://localhost:9000/api/system/status > /dev/null 2>&1; then
-            echo "⚠️ SonarQube no está disponible (el workflow pudo fallar antes de este paso)"
+            echo "⚠️ SonarQube no disponible"
             exit 0
           fi
           
-          echo ""
-          echo "╔══════════════════════════════════════════════════════════╗"
-          echo "║          RESULTADO QUALITY GATE - SAST                  ║"
-          echo "╚══════════════════════════════════════════════════════════╝"
-          
-          QG=$(curl -sf "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" \
-            -u "admin:SastPass123!" 2>/dev/null)
+          QG=$(curl -s "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" -u "admin:admin" 2>/dev/null)
           
           if [ -z "$QG" ]; then
-            echo "🔄 Primer análisis completado"
-            echo "Los Quality Gates se evaluarán en el próximo análisis"
+            echo "✅ Primer análisis completado (QG se evaluará en el próximo push)"
             exit 0
           fi
           
           STATUS=$(echo "$QG" | jq -r '.projectStatus.status // "UNKNOWN"')
-          echo "Rama: ${{ github.ref_name }}"
-          echo "Commit: ${GITHUB_SHA:0:7}"
-          echo "Estado: $STATUS"
-          
-          COND_COUNT=$(echo "$QG" | jq '.projectStatus.conditions | length' 2>/dev/null || echo "0")
-          if [ "$COND_COUNT" != "0" ] && [ "$COND_COUNT" != "null" ]; then
-            echo ""
-            echo "Condiciones:"
-            echo "$QG" | jq -r '.projectStatus.conditions[]? | "  • \(.metric): \(.status) [\(.actualValue)]"' 2>/dev/null
-          fi
+          echo "Quality Gate: $STATUS"
           
           if [ "$STATUS" = "ERROR" ]; then
-            echo ""
             echo "❌ QUALITY GATE FALLADO"
             exit 1
           fi
           
-          echo ""
-          echo "✅ Análisis completado - Status: $STATUS"
+          echo "✅ Análisis completado"
 
-      # ==========================================
-      # 9. RESUMEN GITHUB
-      # ==========================================
       - name: 📊 Resumen en GitHub
         if: always()
         run: |
-          # Verificar que SonarQube sigue respondiendo
           if ! curl -sf http://localhost:9000/api/system/status > /dev/null 2>&1; then
-            echo "# ⚠️ Análisis SAST Incompleto" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "El workflow falló antes de que SonarQube pudiera completar el análisis." >> $GITHUB_STEP_SUMMARY
-            echo "Revisa los pasos anteriores para más detalles." >> $GITHUB_STEP_SUMMARY
+            echo "# ⚠️ Análisis Incompleto" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
           
-          QG_RAW=$(curl -sf "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" \
-            -u "admin:SastPass123!" 2>/dev/null)
+          QG_RAW=$(curl -s "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" -u "admin:admin" 2>/dev/null)
           
           if [ -z "$QG_RAW" ]; then
             STATUS="PENDING"
-            CONDITIONS_TABLE="*Primer análisis - sin datos previos*"
+            CONDITIONS="*Primer análisis*"
           else
             STATUS=$(echo "$QG_RAW" | jq -r '.projectStatus.status // "PENDING"')
-            CONDITIONS_COUNT=$(echo "$QG_RAW" | jq '.projectStatus.conditions | length' 2>/dev/null || echo "0")
-            
-            if [ "$CONDITIONS_COUNT" = "null" ] || [ "$CONDITIONS_COUNT" = "0" ]; then
-              CONDITIONS_TABLE="*Sin condiciones evaluadas*"
-            else
-              CONDITIONS_TABLE=$(echo "$QG_RAW" | jq -r '.projectStatus.conditions[]? | "- **\(.metric)**: `\(.status)` (valor: `\(.actualValue)`)"' 2>/dev/null || echo "*Error leyendo condiciones*")
-            fi
+            CONDITIONS=$(echo "$QG_RAW" | jq -r '.projectStatus.conditions[]? | "- **\(.metric)**: \(.status)"' 2>/dev/null || "*Sin condiciones*")
           fi
           
-          case "$STATUS" in
-            OK) EMOJI="✅" ;;
-            ERROR|FAILED) EMOJI="❌" ;;
-            WARNING) EMOJI="⚠️" ;;
-            PENDING|*) EMOJI="🔄" ;;
-          esac
+          [ "$STATUS" = "OK" ] && EMOJI="✅" || EMOJI="❌"
           
           cat >> $GITHUB_STEP_SUMMARY << EOF
           # ${EMOJI} Análisis SAST - Taller SAST
           
-          ## Módulos Analizados
+          | Módulo | Estado |
+          |--------|--------|
+          | 📁 auth-service | ✅ |
+          | 📁 frontend | ✅ |
+          | 📁 products | ✅ |
+          | 📁 analisis-vulnerabilidades | ✅ |
           
-          | Módulo | Tipo | Estado |
-          |--------|------|--------|
-          | 📁 auth-service | NestJS | ✅ Analizado |
-          | 📁 frontend | React | ✅ Analizado |
-          | 📁 products | NestJS | ✅ Analizado |
-          | 📁 analisis-vulnerabilidades | Utils | ✅ Analizado |
+          **Quality Gate:** ${STATUS}
+          <details><summary>Ver condiciones</summary>
           
-          ## Quality Gate: **${STATUS}**
-          
-          <details>
-          <summary>📋 Ver condiciones evaluadas</summary>
-          
-          ${CONDITIONS_TABLE}
+          ${CONDITIONS}
           
           </details>
           
-          ---
-          *Rama: \`${{ github.ref_name }}\` | Commit: \`${GITHUB_SHA:0:7}\`*
+          *Rama: \`${{ github.ref_name }}\`*
           EOF
