@@ -7,9 +7,6 @@ on:
     branches: [ main, test, dev ]
   workflow_dispatch:
 
-env:
-  NODE_VERSION: '20'
-
 jobs:
   sonarqube:
     name: 🔍 Análisis SAST
@@ -31,22 +28,35 @@ jobs:
           --health-retries 20
 
     steps:
+      # ==========================================
+      # 1. CHECKOUT
+      # ==========================================
       - name: 📥 Checkout código
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # ==========================================
+      # 2. CONFIGURAR NODE.JS (SIN CACHE)
+      # ==========================================
       - name: 🟢 Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          node-version: '20'
 
+      # ==========================================
+      # 3. INSTALAR DEPENDENCIAS (NPM INSTALL)
+      # ==========================================
       - name: 📦 Instalar dependencias
         run: |
-          npm ci --ignore-scripts || npm install --ignore-scripts
+          echo "📦 Instalando dependencias..."
+          # Se usa npm install en lugar de npm ci porque no hay package-lock.json
+          npm install --ignore-scripts
           echo "✅ Dependencias instaladas"
 
+      # ==========================================
+      # 4. ESPERAR SONARQUBE
+      # ==========================================
       - name: ⏳ Esperar SonarQube
         run: |
           echo "⏳ Esperando SonarQube..."
@@ -56,6 +66,7 @@ jobs:
               echo "✅ SonarQube listo"
               break
             fi
+            echo "  Esperando... ($i/60)"
             sleep 5
           done
           
@@ -64,14 +75,19 @@ jobs:
             exit 1
           fi
 
+      # ==========================================
+      # 5. CONFIGURAR SONARQUBE (Token + QG)
+      # ==========================================
       - name: 🔧 Configurar SonarQube
         run: |
+          # Cambiar contraseña
           curl -sf -X POST "http://localhost:9000/api/users/change_password" \
             -u "admin:admin" \
             -d "login=admin&previousPassword=admin&password=SastPass123!" || true
           
           sleep 2
           
+          # Generar token
           TOKEN=$(curl -sf -X POST "http://localhost:9000/api/user_tokens/generate" \
             -u "admin:SastPass123!" \
             -d "name=ci-$(date +%s)&type=GLOBAL_ANALYSIS_TOKEN" | jq -r '.token')
@@ -89,44 +105,24 @@ jobs:
             -u "admin:SastPass123!" \
             -d "name=SAST Security Standard" | jq -r '.id')
           
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" \
-            -u "admin:SastPass123!" \
-            -d "gateId=$QG_ID&metric=new_bugs&op=LT&error=1"
+          # Condiciones del Quality Gate
+          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=new_bugs&op=LT&error=1"
+          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=new_vulnerabilities&op=LT&error=1"
+          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=new_security_hotspots_reviewed&op=LT&error=1"
+          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=new_code_smells&op=LT&warning=10&error=20"
+          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=duplicated_lines_density&op=GT&warning=5&error=10"
+          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=sqale_rating&op=LT&error=2"
+          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=reliability_rating&op=LT&error=2"
+          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:SastPass123!" -d "gateId=$QG_ID&metric=security_rating&op=LT&error=2"
           
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" \
-            -u "admin:SastPass123!" \
-            -d "gateId=$QG_ID&metric=new_vulnerabilities&op=LT&error=1"
-          
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" \
-            -u "admin:SastPass123!" \
-            -d "gateId=$QG_ID&metric=new_security_hotspots_reviewed&op=LT&error=1"
-          
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" \
-            -u "admin:SastPass123!" \
-            -d "gateId=$QG_ID&metric=new_code_smells&op=LT&warning=10&error=20"
-          
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" \
-            -u "admin:SastPass123!" \
-            -d "gateId=$QG_ID&metric=duplicated_lines_density&op=GT&warning=5&error=10"
-          
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" \
-            -u "admin:SastPass123!" \
-            -d "gateId=$QG_ID&metric=sqale_rating&op=LT&error=2"
-          
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" \
-            -u "admin:SastPass123!" \
-            -d "gateId=$QG_ID&metric=reliability_rating&op=LT&error=2"
-          
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/create_condition" \
-            -u "admin:SastPass123!" \
-            -d "gateId=$QG_ID&metric=security_rating&op=LT&error=2"
-          
-          curl -sf -X POST "http://localhost:9000/api/qualitygates/set_as_default" \
-            -u "admin:SastPass123!" \
-            -d "id=$QG_ID"
+          # Establecer como defecto
+          curl -sf -X POST "http://localhost:9000/api/qualitygates/set_as_default" -u "admin:SastPass123!" -d "id=$QG_ID"
           
           echo "✅ Quality Gate configurado"
 
+      # ==========================================
+      # 6. TESTS Y COVERAGE POR MÓDULO
+      # ==========================================
       - name: 🧪 Tests - Auth Service
         working-directory: apps/auth-service
         run: |
@@ -167,6 +163,9 @@ jobs:
           [ ! -f "../../coverage/analisis-vulnerabilidades/lcov.info" ] && echo "" > ../../coverage/analisis-vulnerabilidades/lcov.info
           echo "✅ Análisis Vulnerabilidades completado"
 
+      # ==========================================
+      # 7. ANÁLISIS SONARQUBE
+      # ==========================================
       - name: 🔍 Ejecutar SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
         env:
@@ -176,9 +175,18 @@ jobs:
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
 
+      # ==========================================
+      # 8. VERIFICAR QUALITY GATE
+      # ==========================================
       - name: ✅ Verificar Quality Gate
         if: always()
         run: |
+          # Verificar que SonarQube sigue respondiendo antes de consultar
+          if ! curl -sf http://localhost:9000/api/system/status > /dev/null 2>&1; then
+            echo "⚠️ SonarQube no está disponible (el workflow pudo fallar antes de este paso)"
+            exit 0
+          fi
+          
           echo ""
           echo "╔══════════════════════════════════════════════════════════╗"
           echo "║          RESULTADO QUALITY GATE - SAST                  ║"
@@ -214,9 +222,21 @@ jobs:
           echo ""
           echo "✅ Análisis completado - Status: $STATUS"
 
+      # ==========================================
+      # 9. RESUMEN GITHUB
+      # ==========================================
       - name: 📊 Resumen en GitHub
         if: always()
         run: |
+          # Verificar que SonarQube sigue respondiendo
+          if ! curl -sf http://localhost:9000/api/system/status > /dev/null 2>&1; then
+            echo "# ⚠️ Análisis SAST Incompleto" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "El workflow falló antes de que SonarQube pudiera completar el análisis." >> $GITHUB_STEP_SUMMARY
+            echo "Revisa los pasos anteriores para más detalles." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          
           QG_RAW=$(curl -sf "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" \
             -u "admin:SastPass123!" 2>/dev/null)
           
