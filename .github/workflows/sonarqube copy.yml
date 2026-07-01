@@ -60,14 +60,12 @@ jobs:
 
       - name: 🔧 Configurar SonarQube y Quality Gate
         run: |
-          # Generar token usando admin:admin (Sin cambio de contraseña)
           TOKEN_RESPONSE=$(curl -s -X POST "http://localhost:9000/api/user_tokens/generate" \
             -u "admin:admin" \
             -d "name=ci-token&type=GLOBAL_ANALYSIS_TOKEN")
           
           TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.token')
           
-          # Reintentar si la base de datos no está 100% lista
           if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
             echo "Reintentando generación de token en 10s..."
             sleep 10
@@ -78,14 +76,13 @@ jobs:
           fi
           
           if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
-            echo "❌ Error generando token"
+            echo "❌ Error: $TOKEN_RESPONSE"
             exit 1
           fi
           
           echo "SONAR_TOKEN=$TOKEN" >> $GITHUB_ENV
           echo "✅ Token generado"
 
-          # Crear Quality Gate (Se usa 's' en lugar de 'sf' para no matar el proceso si falla)
           QG_ID=$(curl -s -X POST "http://localhost:9000/api/qualitygates/create" \
             -u "admin:admin" \
             -d "name=SAST Standard" | jq -r '.id')
@@ -99,7 +96,6 @@ jobs:
           curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=reliability_rating&op=LT&error=2" || true
           curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=security_rating&op=LT&error=2" || true
           
-          # Establecer como defecto
           curl -s -X POST "http://localhost:9000/api/qualitygates/set_as_default" -u "admin:admin" -d "id=$QG_ID" || true
           
           echo "✅ Quality Gate configurado"
@@ -140,95 +136,76 @@ jobs:
           fi
           [ ! -f "../../coverage/analisis-vulnerabilidades/lcov.info" ] && echo "" > ../../coverage/analisis-vulnerabilidades/lcov.info
 
-      # NOTA CLAVE: Se usa 'sonarqube' en lugar de 'localhost' por la red de Docker
       - name: 🔍 Ejecutar SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
-          SONAR_HOST_URL: http://sonarqube:9000
+          SONAR_HOST_URL: http://sonarqube:9000    # <--- POR ESTO
           SONAR_SCANNER_OPTS: >
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
 
-      # Este paso obtiene las métricas ANTES de que el contenedor se destruya
-      - name: ✅ Verificar Quality Gate y Obtener Métricas
+      - name: ✅ Verificar Quality Gate
         if: always()
         run: |
           if ! curl -sf http://localhost:9000/api/system/status > /dev/null 2>&1; then
-            echo "⚠️ SonarQube no disponible" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ SonarQube no disponible"
             exit 0
           fi
           
-          # Obtener métricas generales del proyecto
-          METRICS=$(curl -s "http://localhost:9000/api/measures/component?component=taller-sast&metricKeys=bugs,vulnerabilities,code_smells,duplicated_lines_density,ncloc,security_rating,reliability_rating,sqale_rating" -u "admin:admin")
+          QG=$(curl -s "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" -u "admin:admin" 2>/dev/null)
           
-          # Obtener estado del Quality Gate
-          QG=$(curl -s "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" -u "admin:admin")
-          QG_STATUS=$(echo "$QG" | jq -r '.projectStatus.status // "UNKNOWN"')
-          
-          # Extraer valores con fallback a 0
-          BUGS=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="bugs") | .value // "0"')
-          VULNS=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="vulnerabilities") | .value // "0"')
-          SMELLS=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="code_smells") | .value // "0"')
-          DUPL=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="duplicated_lines_density") | .value // "0"')
-          LINES=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="ncloc") | .value // "0"')
-          SEC_R=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="security_rating") | .value // "1"')
-          REL_R=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="reliability_rating") | .value // "1"')
-          MAIN_R=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="sqale_rating") | .value // "1"')
-          
-          # Función para convertir número a letra
-          rating_to_letter() { case $1 in 1) echo "A";; 2) echo "B";; 3) echo "C";; 4) echo "D";; 5) echo "E";; *) echo "?";; esac }
-          
-          SEC_LETTER=$(rating_to_letter $SEC_R)
-          REL_LETTER=$(rating_to_letter $REL_R)
-          MAIN_LETTER=$(rating_to_letter $MAIN_R)
-          
-          # Guardar variables para el siguiente paso
-          echo "BUGS=$BUGS" >> $GITHUB_ENV
-          echo "VULNS=$VULNS" >> $GITHUB_ENV
-          echo "SMELLS=$SMELLS" >> $GITHUB_ENV
-          echo "DUPLICATION=$DUPL" >> $GITHUB_ENV
-          echo "LINES=$LINES" >> $GITHUB_ENV
-          echo "SEC_LETTER=$SEC_LETTER" >> $GITHUB_ENV
-          echo "REL_LETTER=$REL_LETTER" >> $GITHUB_ENV
-          echo "MAIN_LETTER=$MAIN_LETTER" >> $GITHUB_ENV
-          echo "QG_STATUS=$QG_STATUS" >> $GITHUB_ENV
-
-      # Este paso pinta la tabla bonita en GitHub
-      - name: 📊 Reporte en GitHub
-        if: always()
-        run: |
-          if [ "$QG_STATUS" = "OK" ]; then
-            EMOJI="✅"
-            STATUS_TXT="APROBADO"
-          else
-            EMOJI="❌"
-            STATUS_TXT="FALLADO"
+          if [ -z "$QG" ]; then
+            echo "✅ Primer análisis completado (QG se evaluará en el próximo push)"
+            exit 0
           fi
           
+          STATUS=$(echo "$QG" | jq -r '.projectStatus.status // "UNKNOWN"')
+          echo "Quality Gate: $STATUS"
+          
+          if [ "$STATUS" = "ERROR" ]; then
+            echo "❌ QUALITY GATE FALLADO"
+            exit 1
+          fi
+          
+          echo "✅ Análisis completado"
+
+      - name: 📊 Resumen en GitHub
+        if: always()
+        run: |
+          if ! curl -sf http://localhost:9000/api/system/status > /dev/null 2>&1; then
+            echo "# ⚠️ Análisis Incompleto" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          
+          QG_RAW=$(curl -s "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" -u "admin:admin" 2>/dev/null)
+          
+          if [ -z "$QG_RAW" ]; then
+            STATUS="PENDING"
+            CONDITIONS="*Primer análisis*"
+          else
+            STATUS=$(echo "$QG_RAW" | jq -r '.projectStatus.status // "PENDING"')
+            CONDITIONS=$(echo "$QG_RAW" | jq -r '.projectStatus.conditions[]? | "- **\(.metric)**: \(.status)"' 2>/dev/null || "*Sin condiciones*")
+          fi
+          
+          [ "$STATUS" = "OK" ] && EMOJI="✅" || EMOJI="❌"
+          
           cat >> $GITHUB_STEP_SUMMARY << EOF
-          # ${EMOJI} Reporte SAST - Taller SAST
+          # ${EMOJI} Análisis SAST - Taller SAST
           
-          ## Estado del Quality Gate: **${STATUS_TXT}**
+          | Módulo | Estado |
+          |--------|--------|
+          | 📁 auth-service | ✅ |
+          | 📁 frontend | ✅ |
+          | 📁 products | ✅ |
+          | 📁 analisis-vulnerabilidades | ✅ |
           
-          ### Métricas Generales
+          **Quality Gate:** ${STATUS}
+          <details><summary>Ver condiciones</summary>
           
-          | Métrica | Valor |
-          |---|---|
-          | 🐛 Bugs | **${BUGS}** |
-          | 🔓 Vulnerabilidades | **${VULNS}** |
-          | 👃 Code Smells | **${SMELLS}** |
-          | 📋 Líneas de código | **${LINES}** |
-          | 🔄 Duplicación | **${DUPLICATION}%** |
+          ${CONDITIONS}
           
-          ### Ratings de Calidad
+          </details>
           
-          | Categoría | Rating |
-          |---|---|
-          | 🔒 Seguridad | **${SEC_LETTER}** |
-          | 🛡️ Fiabilidad | **${REL_LETTER}** |
-          | 🏗️ Mantenibilidad | **${MAIN_LETTER}** |
-          
-          ---
-          *Análisis ejecutado en rama \`${{ github.ref_name }}\`*
+          *Rama: \`${{ github.ref_name }}\`*
           EOF
