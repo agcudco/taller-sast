@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   auth-db:
     image: postgres:17-alpine
@@ -7,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: auth_service
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: postgres   
     ports:
       - "5432:5432"
     volumes:
@@ -17,6 +15,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   product-db:
     image: postgres:17-alpine
@@ -24,7 +23,7 @@ services:
     environment:
       POSTGRES_DB: product_service
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: postgres   # ← contraseña definida
     ports:
       - "5433:5432"
     volumes:
@@ -34,51 +33,81 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   auth-service:
-    build: ./apps/auth-service     # ← ruta actualizada
+    build: ./apps/auth-service
     container_name: auth-service
     ports:
       - "3000:3000"
     environment:
+      PORT: 3000
       DB_HOST: auth-db
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASS: postgres
       DB_NAME: auth_service
+      ALLOWED_ORIGINS: http://localhost:80,http://localhost:3000,http://localhost:3001
       JWT_SECRET: ClaveSecretaMuySeguraCambiarEnProduccion
       JWT_EXPIRATION: 10m
       REFRESH_EXPIRATION: 7d
     depends_on:
       auth-db:
         condition: service_healthy
-    restart: always
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3000/', (res) => process.exit(res.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1));",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   product-service:
-    build: ./apps/product-service   # ← ruta actualizada
+    build: ./apps/products
     container_name: product-service
     ports:
-      - "3001:3000"
+      - "3001:3001"
     environment:
+      PORT: 3001
       DB_HOST: product-db
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASS: postgres
       DB_NAME: product_service
+      ALLOWED_ORIGINS: http://localhost:80,http://localhost:3000,http://localhost:3001
       JWT_SECRET: ClaveSecretaMuySeguraCambiarEnProduccion
     depends_on:
       product-db:
         condition: service_healthy
-    restart: always
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3001/', (res) => process.exit(res.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1));",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   frontend:
-    build: ./apps/frontend          # ← ruta actualizada
+    build: ./apps/frontend
     container_name: frontend
     ports:
       - "80:80"
     depends_on:
-      - auth-service
-      - product-service
+      auth-service:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   auth-db-data:
