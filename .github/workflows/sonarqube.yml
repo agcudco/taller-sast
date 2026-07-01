@@ -140,8 +140,7 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v2
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
-          # Aquí está el fix: host.docker.internal en lugar de localhost
-          SONAR_HOST_URL: http://host.docker.internal:9000
+          SONAR_HOST_URL: http://sonarqube:9000    # <--- POR ESTO
           SONAR_SCANNER_OPTS: >
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
