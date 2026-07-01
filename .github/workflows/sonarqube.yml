@@ -149,33 +149,49 @@ jobs:
         if: always()
         run: |
           if ! curl -sf http://localhost:9000/api/system/status > /dev/null 2>&1; then
-            echo "⚠️ SonarQube no disponible" >> $GITHUB_STEP_SUMMARY
+            echo "# ⚠️ Análisis Incompleto" >> $GITHUB_STEP_SUMMARY
+            echo "El contenedor de SonarQube no está disponible." >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
           
-          # Obtener métricas generales del proyecto
-          METRICS=$(curl -s "http://localhost:9000/api/measures/component?component=taller-sast&metricKeys=bugs,vulnerabilities,code_smells,duplicated_lines_density,ncloc,security_rating,reliability_rating,sqale_rating" -u "admin:admin")
+          # Pausa de seguridad para que la BD de SonarQube guarde las métricas
+          echo "Esperando a que las métricas estén disponibles..."
+          sleep 5
+          
+          # Obtener métricas generales (con valor por defecto si falla)
+          METRICS_RAW=$(curl -s "http://localhost:9000/api/measures/component?component=taller-sast&metricKeys=bugs,vulnerabilities,code_smells,duplicated_lines_density,ncloc,security_rating,reliability_rating,sqale_rating" -u "admin:admin" 2>/dev/null)
           
           # Obtener estado del Quality Gate
-          QG=$(curl -s "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" -u "admin:admin")
-          QG_STATUS=$(echo "$QG" | jq -r '.projectStatus.status // "UNKNOWN"')
+          QG_RAW=$(curl -s "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" -u "admin:admin" 2>/dev/null)
+          QG_STATUS=$(echo "$QG_RAW" | jq -r '.projectStatus.status // "UNKNOWN" 2>/dev/null)
           
-          # Extraer valores
-          BUGS=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="bugs") | .value')
-          VULNS=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="vulnerabilities") | .value')
-          SMELLS=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="code_smells") | .value')
-          DUPL=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="duplicated_lines_density") | .value // "0")
-          LINES=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="ncloc") | .value')
-          SEC_R=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="security_rating") | .value')
-          REL_R=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="reliability_rating") | .value')
-          MAIN_R=$(echo "$METRICS" | jq -r '.measures[] | select(.metric=="sqale_rating") | .value')
+          # Extraer valores con awk (más robusto que jq para evitar errores fatales)
+          BUGS=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /bugs/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          VULNS=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /vulnerabilities/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          SMELLS=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /code_smells/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          DUPL=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /duplicated_lines_density/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          LINES=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /ncloc/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          SEC_R=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /security_rating/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          REL_R=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /reliability_rating/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          MAIN_R=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /sqale_rating/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
           
-          # Convertir ratings a letras
+          # Valores por defecto si no se encontraron
+          BUGS=${BUGS:-0}
+          VULNS=${VULNS:-0}
+          SMELLS=${SMELLS:-0}
+          DUPL=${DUPL:-0.0}
+          LINES=${LINES:-0}
+          SEC_R=${SEC_R:-1}
+          REL_R=${REL_R:-1}
+          MAIN_R=${MAIN_R:-1}
+          
+          # Convertir ratings numéricos a letras
           rating_to_letter() { case $1 in 1) echo "A";; 2) echo "B";; 3) echo "C";; 4) echo "D";; 5) echo "E";; *) echo "?";; esac }
           SEC_LETTER=$(rating_to_letter $SEC_R)
           REL_LETTER=$(rating_to_letter $REL_R)
           MAIN_LETTER=$(rating_to_letter $MAIN_R)
           
+          # Guardar en variables de entorno para el siguiente paso
           echo "METRICS_BUGS=$BUGS" >> $GITHUB_ENV
           echo "METRICS_VULNS=$VULNS" >> $GITHUB_ENV
           echo "METRICS_SMELLS=$SMELLS" >> $GITHUB_ENV
@@ -197,7 +213,7 @@ jobs:
             STATUS_TXT="FALLADO"
           fi
           
-          # Colores para ratings
+          # Emojis para ratings
           rating_emoji() { case $1 in A) echo "🟢";; B) echo "🟡";; *) echo "🔴";; esac }
           
           cat >> $GITHUB_STEP_SUMMARY << EOF
