@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+
+# Ejecuta SonarQube solo si hay cambios en codigo fuente de apps/
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^apps/.*\.(ts|tsx|js|jsx|css|html|scss)$' || true)
+
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+echo "Cambios detectados en codigo fuente. Iniciando analisis SonarQube..."
+sh "$(dirname "$0")/../scripts/sonar-analyze.sh"

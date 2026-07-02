@@ -82,6 +82,25 @@ services:
       - auth-service
       - product-service
 
+  sonarqube:
+    profiles:
+      - sonarqube
+    image: sonarqube:9.9-community
+    container_name: taller-sast-sonarqube
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+      - SONARQUBE_WEB_JVM_OPTS=-Xmx512m -Xms128m
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+
 volumes:
   auth-db-data:
   product-db-data:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:

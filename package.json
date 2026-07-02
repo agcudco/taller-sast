@@ -9,6 +9,9 @@
     "dev:products": "yarn workspace products start:dev",
     "dev:frontend": "yarn workspace frontend start",
     "dev:analisis": "yarn workspace AnalisisVulnerabilidades start:dev",
-    "dev": "turbo run dev"
+    "dev": "turbo run dev",
+    "prepare": "sh scripts/setup-git-hooks.sh",
+    "sonar": "sh scripts/sonar-analyze.sh",
+    "sonar:coverage": "yarn workspace auth-service test:cov && yarn workspace products test:cov && sh scripts/sonar-analyze.sh"
   }
 }
