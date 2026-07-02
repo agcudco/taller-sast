@@ -189,17 +189,64 @@ jobs:
           curl -s "http://localhost:9000/api/components/tree?component=taller-sast&qualifiers=DIR" -u "admin:admin" | jq -r '.components[].path'
 
       # ---------- 7. Análisis de dependencias con Trivy ----------
-      - name: 🔐 Escanear dependencias con Trivy (vulnerabilidades en librerías)
+      - name: 🔐 Escanear dependencias con Trivy
         if: always()
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
-          format: 'table'
+          format: 'json'
+          output: 'trivy-report.json'
           exit-code: '0'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
 
-      # ---------- 8. Verificar Quality Gate y obtener métricas ----------
+      # ---------- 8. Extraer resumen de Trivy ----------
+      - name: 📊 Extraer resumen de Trivy
+        if: always()
+        id: trivy_summary
+        run: |
+          # Verificar si el archivo existe
+          if [ ! -f "trivy-report.json" ]; then
+            echo "⚠️ No se generó reporte de Trivy"
+            echo "TRIVY_CRITICAL=0" >> $GITHUB_ENV
+            echo "TRIVY_HIGH=0" >> $GITHUB_ENV
+            echo "TRIVY_MEDIUM=0" >> $GITHUB_ENV
+            echo "TRIVY_LOW=0" >> $GITHUB_ENV
+            echo "TRIVY_TOTAL=0" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          # Extraer conteos por severidad usando jq
+          CRITICAL=$(jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL") | .VulnerabilityID' trivy-report.json | wc -l | tr -d ' ')
+          HIGH=$(jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH") | .VulnerabilityID' trivy-report.json | wc -l | tr -d ' ')
+          MEDIUM=$(jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity=="MEDIUM") | .VulnerabilityID' trivy-report.json | wc -l | tr -d ' ')
+          LOW=$(jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity=="LOW") | .VulnerabilityID' trivy-report.json | wc -l | tr -d ' ')
+          TOTAL=$((CRITICAL + HIGH + MEDIUM + LOW))
+
+          # Guardar en variables de entorno
+          echo "TRIVY_CRITICAL=$CRITICAL" >> $GITHUB_ENV
+          echo "TRIVY_HIGH=$HIGH" >> $GITHUB_ENV
+          echo "TRIVY_MEDIUM=$MEDIUM" >> $GITHUB_ENV
+          echo "TRIVY_LOW=$LOW" >> $GITHUB_ENV
+          echo "TRIVY_TOTAL=$TOTAL" >> $GITHUB_ENV
+
+          echo "✅ Resumen de Trivy extraído:"
+          echo "   CRITICAL: $CRITICAL"
+          echo "   HIGH: $HIGH"
+          echo "   MEDIUM: $MEDIUM"
+          echo "   LOW: $LOW"
+          echo "   TOTAL: $TOTAL"
+
+      # ---------- 9. Subir reporte de Trivy como artefacto ----------
+      - name: 📤 Subir reporte de Trivy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.json
+          retention-days: 7
+
+      # ---------- 10. Verificar Quality Gate y obtener métricas ----------
       - name: ✅ Verificar Quality Gate y Obtener Métricas
         if: always()
         run: |
@@ -288,7 +335,7 @@ jobs:
           echo "EMOJI=$EMOJI" >> $GITHUB_ENV
           echo "STATUS_TXT=$STATUS_TXT" >> $GITHUB_ENV
 
-      # ---------- 9. Generar reporte en GitHub ----------
+      # ---------- 11. Generar reporte en GitHub ----------
       - name: 📊 Reporte en GitHub
         if: always()
         run: |
@@ -317,15 +364,36 @@ jobs:
           | 🛡️ Fiabilidad | $(rating_emoji $METRICS_REL) **${METRICS_REL}** |
           | 🏗️ Mantenibilidad | $(rating_emoji $METRICS_MAIN) **${METRICS_MAIN}** |
 
+          ### 🔐 Vulnerabilidades en dependencias (Trivy)
+
+          | Severidad | Cantidad |
+          |---|---|
+          | 🔴 CRITICAL | **${TRIVY_CRITICAL}** |
+          | 🟠 HIGH | **${TRIVY_HIGH}** |
+          | 🟡 MEDIUM | **${TRIVY_MEDIUM}** |
+          | 🔵 LOW | **${TRIVY_LOW}** |
+          | **TOTAL** | **${TRIVY_TOTAL}** |
+
           ---
           *Análisis ejecutado en rama \`${{ github.ref_name }}\`*
           EOF
 
-      # ---------- 10. Construir mensaje para Telegram ----------
+      # ---------- 12. Construir mensaje para Telegram ----------
       - name: 📝 Construir mensaje para Telegram
         if: always()
         id: telegram_message
         run: |
+          # Crear emojis según severidad
+          if [ "$TRIVY_CRITICAL" -gt 0 ] || [ "$TRIVY_HIGH" -gt 0 ]; then
+            TRIVY_EMOJI="🔴"
+          elif [ "$TRIVY_MEDIUM" -gt 0 ]; then
+            TRIVY_EMOJI="🟡"
+          elif [ "$TRIVY_LOW" -gt 0 ]; then
+            TRIVY_EMOJI="🔵"
+          else
+            TRIVY_EMOJI="🟢"
+          fi
+
           MESSAGE=$(cat <<EOF
           <b>${EMOJI} Análisis SAST - Taller SAST</b>
           
@@ -334,19 +402,27 @@ jobs:
           <b>Autor:</b> ${{ github.actor }}
           <b>Commit:</b> ${{ github.event.head_commit.message }}
           
-          <b>Métricas Generales:</b>
+          <b>📊 Métricas Generales:</b>
           🐛 Bugs: ${METRICS_BUGS}
           🔓 Vulnerabilidades: ${METRICS_VULNS}
           👃 Code Smells: ${METRICS_SMELLS}
           📋 Líneas de código: ${METRICS_LINES}
           🔄 Duplicación: ${METRICS_DUPL}%
           
-          <b>Ratings de Calidad:</b>
+          <b>🏷️ Ratings de Calidad:</b>
           🔒 Seguridad: ${METRICS_SEC}
           🛡️ Fiabilidad: ${METRICS_REL}
           🏗️ Mantenibilidad: ${METRICS_MAIN}
           
+          <b>${TRIVY_EMOJI} Vulnerabilidades en dependencias:</b>
+          🔴 CRITICAL: ${TRIVY_CRITICAL}
+          🟠 HIGH: ${TRIVY_HIGH}
+          🟡 MEDIUM: ${TRIVY_MEDIUM}
+          🔵 LOW: ${TRIVY_LOW}
+          <b>📦 TOTAL: ${TRIVY_TOTAL}</b>
+          
           <a href="http://sonarqube:9000/dashboard?id=taller-sast">🔗 Ver detalles en SonarQube</a>
+          <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">📋 Ver logs completos</a>
           EOF
           )
           echo "$MESSAGE" > telegram_message.txt
@@ -355,7 +431,7 @@ jobs:
           echo "$MESSAGE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # ---------- 11. Enviar notificación a Telegram ----------
+      # ---------- 13. Enviar notificación a Telegram ----------
       - name: 📨 Enviar notificación a Telegram
         if: always()
         uses: appleboy/telegram-action@master
