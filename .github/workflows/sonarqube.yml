@@ -175,7 +175,31 @@ jobs:
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
 
-      # ---------- 6. Verificar Quality Gate y obtener métricas ----------
+      # ---------- 6. Depuración: listar archivos indexados ----------
+      - name: 📋 Listar archivos indexados
+        if: always()
+        run: |
+          echo "=== 📂 Archivos indexados por SonarQube ==="
+          curl -s "http://localhost:9000/api/components/tree?component=taller-sast&qualifiers=FIL&ps=500" -u "admin:admin" | jq -r '.components[].path' | sort
+          echo ""
+          TOTAL=$(curl -s "http://localhost:9000/api/components/tree?component=taller-sast&qualifiers=FIL&ps=500" -u "admin:admin" | jq '.components | length')
+          echo "✅ Total de archivos indexados: $TOTAL"
+          echo ""
+          echo "=== 🗂️ Directorios analizados ==="
+          curl -s "http://localhost:9000/api/components/tree?component=taller-sast&qualifiers=DIR" -u "admin:admin" | jq -r '.components[].path'
+
+      # ---------- 7. Análisis de dependencias con Trivy ----------
+      - name: 🔐 Escanear dependencias con Trivy (vulnerabilidades en librerías)
+        if: always()
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+
+      # ---------- 8. Verificar Quality Gate y obtener métricas ----------
       - name: ✅ Verificar Quality Gate y Obtener Métricas
         if: always()
         run: |
@@ -264,7 +288,7 @@ jobs:
           echo "EMOJI=$EMOJI" >> $GITHUB_ENV
           echo "STATUS_TXT=$STATUS_TXT" >> $GITHUB_ENV
 
-      # ---------- 7. Generar reporte en GitHub ----------
+      # ---------- 9. Generar reporte en GitHub ----------
       - name: 📊 Reporte en GitHub
         if: always()
         run: |
@@ -297,13 +321,11 @@ jobs:
           *Análisis ejecutado en rama \`${{ github.ref_name }}\`*
           EOF
 
-      # ---------- 8. Construir mensaje para Telegram (paso intermedio) ----------
+      # ---------- 10. Construir mensaje para Telegram ----------
       - name: 📝 Construir mensaje para Telegram
         if: always()
         id: telegram_message
         run: |
-          # Escapar caracteres especiales para HTML
-          # No es necesario escapar emojis ni caracteres especiales si usamos HTML
           MESSAGE=$(cat <<EOF
           <b>${EMOJI} Análisis SAST - Taller SAST</b>
           
@@ -327,14 +349,13 @@ jobs:
           <a href="http://sonarqube:9000/dashboard?id=taller-sast">🔗 Ver detalles en SonarQube</a>
           EOF
           )
-          # Guardar el mensaje en un archivo para usarlo después
           echo "$MESSAGE" > telegram_message.txt
-          # También guardar como output para depuración
+          # Guardar también como output para depuración
           echo "message<<EOF" >> $GITHUB_OUTPUT
           echo "$MESSAGE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # ---------- 9. Enviar notificación a Telegram ----------
+      # ---------- 11. Enviar notificación a Telegram ----------
       - name: 📨 Enviar notificación a Telegram
         if: always()
         uses: appleboy/telegram-action@master
