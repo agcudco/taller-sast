@@ -59,7 +59,7 @@ jobs:
             exit 1
           fi
 
-      # ---------- 3. Configurar Quality Gate restrictivo para nuevo código ----------
+      # ---------- 3. Configurar Quality Gate restrictivo ----------
       - name: 🔧 Configurar Quality Gate restrictivo
         run: |
           # 3.1 Generar token de análisis (con reintento)
@@ -111,21 +111,13 @@ jobs:
             done
 
             # Condiciones sobre código NUEVO (métricas new_*)
-            # - 0 bugs nuevos
             curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_bugs&op=LT&error=1" || true
-            # - 0 vulnerabilidades nuevas
             curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_vulnerabilities&op=LT&error=1" || true
-            # - 100% de security hotspots revisados en código nuevo
             curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_security_hotspots_reviewed&op=LT&error=100" || true
-            # - Code smells: warning 5, error 10
             curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_code_smells&op=LT&warning=5&error=10" || true
-            # - Duplicación en código nuevo: warning 5%, error 10%
             curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_duplicated_lines_density&op=GT&warning=5&error=10" || true
-            # - Mantenibilidad: error si rating > B (es decir, C o peor)
             curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_maintainability_rating&op=GT&error=2" || true
-            # - Fiabilidad: error si rating > B
             curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_reliability_rating&op=GT&error=2" || true
-            # - Seguridad: error si rating > B
             curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_security_rating&op=GT&error=2" || true
 
             # Establecer este Quality Gate como predeterminado
@@ -241,6 +233,15 @@ jobs:
           REL_LETTER=$(rating_to_letter $REL_R)
           MAIN_LETTER=$(rating_to_letter $MAIN_R)
 
+          # Determinar estado del Quality Gate y emojis
+          if [ "$QG_STATUS" = "OK" ]; then
+            EMOJI="✅"
+            STATUS_TXT="APROBADO"
+          else
+            EMOJI="❌"
+            STATUS_TXT="FALLADO"
+          fi
+
           # Guardar en variables de entorno para los pasos posteriores
           echo "METRICS_BUGS=$BUGS" >> $GITHUB_ENV
           echo "METRICS_VULNS=$VULNS" >> $GITHUB_ENV
@@ -251,19 +252,13 @@ jobs:
           echo "METRICS_REL=$REL_LETTER" >> $GITHUB_ENV
           echo "METRICS_MAIN=$MAIN_LETTER" >> $GITHUB_ENV
           echo "QG_STATUS=$QG_STATUS" >> $GITHUB_ENV
+          echo "EMOJI=$EMOJI" >> $GITHUB_ENV
+          echo "STATUS_TXT=$STATUS_TXT" >> $GITHUB_ENV
 
       # ---------- 7. Generar reporte en GitHub ----------
       - name: 📊 Reporte en GitHub
         if: always()
         run: |
-          if [ "$QG_STATUS" = "OK" ]; then
-            EMOJI="✅"
-            STATUS_TXT="APROBADO"
-          else
-            EMOJI="❌"
-            STATUS_TXT="FALLADO"
-          fi
-
           rating_emoji() { case $1 in A) echo "🟢";; B) echo "🟡";; *) echo "🔴";; esac }
 
           cat >> $GITHUB_STEP_SUMMARY << EOF
@@ -302,25 +297,23 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }}
           format: markdown
           message: |
-            # *${EMOJI} Análisis SAST - Taller SAST*
-
-            **Estado del Quality Gate:** *${STATUS_TXT}*
-            **Rama:** `${{ github.ref_name }}`
-            **Autor:** ${{ github.actor }}
-            **Commit:** ${{ github.event.head_commit.message }}
-
-            ### 📊 Métricas Generales
-            | Métrica | Valor |
-            |---|---|
-            | 🐛 Bugs | **${METRICS_BUGS}** |
-            | 🔓 Vulnerabilidades | **${METRICS_VULNS}** |
-            | 👃 Code Smells | **${METRICS_SMELLS}** |
-            | 📋 Líneas de código | **${METRICS_LINES}** |
-            | 🔄 Duplicación | **${METRICS_DUPL}%** |
-
-            ### 🏷️ Ratings de Calidad
-            🔒 Seguridad: *${METRICS_SEC}*
-            🛡️ Fiabilidad: *${METRICS_REL}*
-            🏗️ Mantenibilidad: *${METRICS_MAIN}*
-
+            *${EMOJI} Análisis SAST - Taller SAST*
+            
+            *Estado del Quality Gate:* ${STATUS_TXT}
+            *Rama:* `${{ github.ref_name }}`
+            *Autor:* ${{ github.actor }}
+            *Commit:* ${{ github.event.head_commit.message }}
+            
+            *Métricas Generales:*
+            🐛 Bugs: ${METRICS_BUGS}
+            🔓 Vulnerabilidades: ${METRICS_VULNS}
+            👃 Code Smells: ${METRICS_SMELLS}
+            📋 Líneas de código: ${METRICS_LINES}
+            🔄 Duplicación: ${METRICS_DUPL}%
+            
+            *Ratings de Calidad:*
+            🔒 Seguridad: ${METRICS_SEC}
+            🛡️ Fiabilidad: ${METRICS_REL}
+            🏗️ Mantenibilidad: ${METRICS_MAIN}
+            
             [Ver detalles en SonarQube](http://sonarqube:9000/dashboard?id=taller-sast)
