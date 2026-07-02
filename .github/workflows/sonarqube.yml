@@ -210,9 +210,9 @@ jobs:
             SMELLS=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="code_smells") | .value // 0')
             DUPL=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="duplicated_lines_density") | .value // 0.0')
             LINES=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="ncloc") | .value // 0')
-            SEC_R=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="security_rating") | .value // 1')
-            REL_R=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="reliability_rating") | .value // 1')
-            MAIN_R=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="sqale_rating") | .value // 1')
+            SEC_R=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="security_rating") | .value // null')
+            REL_R=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="reliability_rating") | .value // null')
+            MAIN_R=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="sqale_rating") | .value // null')
             QG_STATUS=$(echo "$QG_RAW" | jq -r '.projectStatus.status // "UNKNOWN"')
           else
             # Valores por defecto si no hay métricas
@@ -221,14 +221,23 @@ jobs:
             SMELLS=0
             DUPL=0.0
             LINES=0
-            SEC_R=1
-            REL_R=1
-            MAIN_R=1
+            SEC_R=null
+            REL_R=null
+            MAIN_R=null
             QG_STATUS="UNKNOWN"
           fi
 
-          # Convertir ratings numéricos a letras
-          rating_to_letter() { case $1 in 1) echo "A";; 2) echo "B";; 3) echo "C";; 4) echo "D";; 5) echo "E";; *) echo "?";; esac }
+          # Convertir ratings numéricos a letras (si existen)
+          rating_to_letter() { 
+            case $1 in 
+              1) echo "A";; 
+              2) echo "B";; 
+              3) echo "C";; 
+              4) echo "D";; 
+              5) echo "E";; 
+              *) echo "N/A";; 
+            esac 
+          }
           SEC_LETTER=$(rating_to_letter $SEC_R)
           REL_LETTER=$(rating_to_letter $REL_R)
           MAIN_LETTER=$(rating_to_letter $MAIN_R)
@@ -288,32 +297,32 @@ jobs:
           *Análisis ejecutado en rama \`${{ github.ref_name }}\`*
           EOF
 
-      # ---------- 8. Enviar notificación a Telegram ----------
+      # ---------- 8. Enviar notificación a Telegram (CORREGIDO con HTML) ----------
       - name: 📨 Enviar notificación a Telegram
         if: always()
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
-          format: markdown
+          format: html
           message: |
-            *${EMOJI} Análisis SAST - Taller SAST*
+            <b>${EMOJI} Análisis SAST - Taller SAST</b>
             
-            *Estado del Quality Gate:* ${STATUS_TXT}
-            *Rama:* `${{ github.ref_name }}`
-            *Autor:* ${{ github.actor }}
-            *Commit:* ${{ github.event.head_commit.message }}
+            <b>Estado del Quality Gate:</b> ${STATUS_TXT}
+            <b>Rama:</b> <code>${{ github.ref_name }}</code>
+            <b>Autor:</b> ${{ github.actor }}
+            <b>Commit:</b> ${{ github.event.head_commit.message }}
             
-            *Métricas Generales:*
+            <b>Métricas Generales:</b>
             🐛 Bugs: ${METRICS_BUGS}
             🔓 Vulnerabilidades: ${METRICS_VULNS}
             👃 Code Smells: ${METRICS_SMELLS}
             📋 Líneas de código: ${METRICS_LINES}
             🔄 Duplicación: ${METRICS_DUPL}%
             
-            *Ratings de Calidad:*
+            <b>Ratings de Calidad:</b>
             🔒 Seguridad: ${METRICS_SEC}
             🛡️ Fiabilidad: ${METRICS_REL}
             🏗️ Mantenibilidad: ${METRICS_MAIN}
             
-            [Ver detalles en SonarQube](http://sonarqube:9000/dashboard?id=taller-sast)
+            <a href="http://sonarqube:9000/dashboard?id=taller-sast">Ver detalles en SonarQube</a>
