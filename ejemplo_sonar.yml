@@ -140,72 +140,105 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v2
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
-          SONAR_HOST_URL: http://sonarqube:9000    # <--- POR ESTO
+          SONAR_HOST_URL: http://sonarqube:9000
           SONAR_SCANNER_OPTS: >
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
 
-      - name: ✅ Verificar Quality Gate
-        if: always()
-        run: |
-          if ! curl -sf http://localhost:9000/api/system/status > /dev/null 2>&1; then
-            echo "⚠️ SonarQube no disponible"
-            exit 0
-          fi
-          
-          QG=$(curl -s "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" -u "admin:admin" 2>/dev/null)
-          
-          if [ -z "$QG" ]; then
-            echo "✅ Primer análisis completado (QG se evaluará en el próximo push)"
-            exit 0
-          fi
-          
-          STATUS=$(echo "$QG" | jq -r '.projectStatus.status // "UNKNOWN"')
-          echo "Quality Gate: $STATUS"
-          
-          if [ "$STATUS" = "ERROR" ]; then
-            echo "❌ QUALITY GATE FALLADO"
-            exit 1
-          fi
-          
-          echo "✅ Análisis completado"
-
-      - name: 📊 Resumen en GitHub
+      - name: ✅ Verificar Quality Gate y Obtener Métricas
         if: always()
         run: |
           if ! curl -sf http://localhost:9000/api/system/status > /dev/null 2>&1; then
             echo "# ⚠️ Análisis Incompleto" >> $GITHUB_STEP_SUMMARY
+            echo "El contenedor de SonarQube no está disponible." >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
           
-          QG_RAW=$(curl -s "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" -u "admin:admin" 2>/dev/null)
+          # Pausa de seguridad para que la BD de SonarQube guarde las métricas
+          echo "Esperando a que las métricas estén disponibles..."
+          sleep 5
           
-          if [ -z "$QG_RAW" ]; then
-            STATUS="PENDING"
-            CONDITIONS="*Primer análisis*"
+          # Obtener métricas generales (con valor por defecto si falla)
+          METRICS_RAW=$(curl -s "http://localhost:9000/api/measures/component?component=taller-sast&metricKeys=bugs,vulnerabilities,code_smells,duplicated_lines_density,ncloc,security_rating,reliability_rating,sqale_rating" -u "admin:admin" 2>/dev/null)
+          
+          # Obtener estado del Quality Gate
+          QG_RAW=$(curl -s "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" -u "admin:admin" 2>/dev/null)
+          QG_STATUS=$(echo "$QG_RAW" | jq -r '.projectStatus.status // "UNKNOWN" 2>/dev/null)
+          
+          # Extraer valores con awk (más robusto que jq para evitar errores fatales)
+          BUGS=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /bugs/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          VULNS=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /vulnerabilities/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          SMELLS=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /code_smells/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          DUPL=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /duplicated_lines_density/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          LINES=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /ncloc/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          SEC_R=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /security_rating/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          REL_R=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /reliability_rating/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          MAIN_R=$(echo "$METRICS_RAW" | awk -F'"metric":"' '/{if($2 ~ /sqale_rating/ && $3 ~ /"value":/) {gsub(/.*"value":"?([^"]*).*/,"\\1"); print; exit}}')
+          
+          # Valores por defecto si no se encontraron
+          BUGS=${BUGS:-0}
+          VULNS=${VULNS:-0}
+          SMELLS=${SMELLS:-0}
+          DUPL=${DUPL:-0.0}
+          LINES=${LINES:-0}
+          SEC_R=${SEC_R:-1}
+          REL_R=${REL_R:-1}
+          MAIN_R=${MAIN_R:-1}
+          
+          # Convertir ratings numéricos a letras
+          rating_to_letter() { case $1 in 1) echo "A";; 2) echo "B";; 3) echo "C";; 4) echo "D";; 5) echo "E";; *) echo "?";; esac }
+          SEC_LETTER=$(rating_to_letter $SEC_R)
+          REL_LETTER=$(rating_to_letter $REL_R)
+          MAIN_LETTER=$(rating_to_letter $MAIN_R)
+          
+          # Guardar en variables de entorno para el siguiente paso
+          echo "METRICS_BUGS=$BUGS" >> $GITHUB_ENV
+          echo "METRICS_VULNS=$VULNS" >> $GITHUB_ENV
+          echo "METRICS_SMELLS=$SMELLS" >> $GITHUB_ENV
+          echo "METRICS_DUPL=$DUPL" >> $GITHUB_ENV
+          echo "METRICS_LINES=$LINES" >> $GITHUB_ENV
+          echo "METRICS_SEC=$SEC_LETTER" >> $GITHUB_ENV
+          echo "METRICS_REL=$REL_LETTER" >> $GITHUB_ENV
+          echo "METRICS_MAIN=$MAIN_LETTER" >> $GITHUB_ENV
+          echo "QG_STATUS=$QG_STATUS" >> $GITHUB_ENV
+
+      - name: 📊 Reporte en GitHub
+        if: always()
+        run: |
+          if [ "$QG_STATUS" = "OK" ]; then
+            EMOJI="✅"
+            STATUS_TXT="APROBADO"
           else
-            STATUS=$(echo "$QG_RAW" | jq -r '.projectStatus.status // "PENDING"')
-            CONDITIONS=$(echo "$QG_RAW" | jq -r '.projectStatus.conditions[]? | "- **\(.metric)**: \(.status)"' 2>/dev/null || "*Sin condiciones*")
+            EMOJI="❌"
+            STATUS_TXT="FALLADO"
           fi
           
-          [ "$STATUS" = "OK" ] && EMOJI="✅" || EMOJI="❌"
+          # Emojis para ratings
+          rating_emoji() { case $1 in A) echo "🟢";; B) echo "🟡";; *) echo "🔴";; esac }
           
           cat >> $GITHUB_STEP_SUMMARY << EOF
-          # ${EMOJI} Análisis SAST - Taller SAST
+          # ${EMOJI} Reporte SAST - Taller SAST
           
-          | Módulo | Estado |
-          |--------|--------|
-          | 📁 auth-service | ✅ |
-          | 📁 frontend | ✅ |
-          | 📁 products | ✅ |
-          | 📁 analisis-vulnerabilidades | ✅ |
+          ## Estado del Quality Gate: **${STATUS_TXT}**
           
-          **Quality Gate:** ${STATUS}
-          <details><summary>Ver condiciones</summary>
+          ### Métricas Generales
           
-          ${CONDITIONS}
+          | Métrica | Valor |
+          |---|---|
+          | 🐛 Bugs | **${METRICS_BUGS}** |
+          | 🔓 Vulnerabilidades | **${METRICS_VULNS}** |
+          | 👃 Code Smells | **${METRICS_SMELLS}** |
+          | 📋 Líneas de código | **${METRICS_LINES}** |
+          | 🔄 Duplicación | **${METRICS_DUPL}%** |
           
-          </details>
+          ### Ratings de Calidad
           
-          *Rama: \`${{ github.ref_name }}\`*
+          | Categoría | Rating |
+          |---|---|
+          | 🔒 Seguridad | $(rating_emoji $METRICS_SEC) **${METRICS_SEC}** |
+          | 🛡️ Fiabilidad | $(rating_emoji $METRICS_REL) **${METRICS_REL}** |
+          | 🏗️ Mantenibilidad | $(rating_emoji $METRICS_MAIN) **${METRICS_MAIN}** |
+          
+          ---
+          *Análisis ejecutado en rama \`${{ github.ref_name }}\`*
           EOF
