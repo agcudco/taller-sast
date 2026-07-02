@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 // Bug: no importa RolesGuard, cualquier autenticado puede acceder
@@ -13,6 +22,11 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   create(@User() user, @Body() dto: CreateOrderDto) {
     return this.ordersService.create(user.id, dto);
+  }
+
+  @Get('welcome')
+  welcomer() {
+    return 'Welcome to the Orders Service!';
   }
 
   @Get('my')
