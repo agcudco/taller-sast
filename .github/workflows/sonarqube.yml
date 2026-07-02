@@ -293,3 +293,34 @@ jobs:
           ---
           *Análisis ejecutado en rama \`${{ github.ref_name }}\`*
           EOF
+    
+      - name: 📨 Enviar notificación a Telegram
+        if: always()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          message: |
+            # *${EMOJI} Análisis SAST - Taller SAST*
+
+            **Estado del Quality Gate:** *${STATUS_TXT}*
+            **Rama:** `${{ github.ref_name }}`
+            **Autor:** ${{ github.actor }}
+            **Commit:** ${{ github.event.head_commit.message }}
+
+            ### 📊 Métricas Generales
+            | Métrica | Valor |
+            |---|---|
+            | 🐛 Bugs | **${METRICS_BUGS}** |
+            | 🔓 Vulnerabilidades | **${METRICS_VULNS}** |
+            | 👃 Code Smells | **${METRICS_SMELLS}** |
+            | 📋 Líneas de código | **${METRICS_LINES}** |
+            | 🔄 Duplicación | **${METRICS_DUPL}%** |
+
+            ### 🏷️ Ratings de Calidad
+            🔒 Seguridad: *${METRICS_SEC}*
+            🛡️ Fiabilidad: *${METRICS_REL}*
+            🏗️ Mantenibilidad: *${METRICS_MAIN}*
+
+            [Ver detalles en SonarQube](http://sonarqube:9000/dashboard?id=taller-sast)

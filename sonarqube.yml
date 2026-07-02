@@ -12,7 +12,7 @@ jobs:
     name: 🔍 Análisis SAST
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    
+
     services:
       sonarqube:
         image: sonarqube:10-community
@@ -52,21 +52,19 @@ jobs:
             fi
             sleep 5
           done
-          
           if ! curl -sf http://localhost:9000/api/system/status | grep -q "UP"; then
             echo "❌ SonarQube no inició"
             exit 1
           fi
 
-      # ---------- Configuración robusta ----------
-      - name: 🔧 Configurar SonarQube y Quality Gate
+      # ------- Configuración del Quality Gate (restrictivo para nuevo código) -------
+      - name: 🔧 Configurar Quality Gate restrictivo
         run: |
           # 1. Generar token (con reintento)
           TOKEN_RESPONSE=$(curl -s -X POST "http://localhost:9000/api/user_tokens/generate" \
             -u "admin:admin" \
             -d "name=ci-token&type=GLOBAL_ANALYSIS_TOKEN")
           TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.token')
-          
           if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
             echo "Reintentando generación de token en 10s..."
             sleep 10
@@ -75,61 +73,69 @@ jobs:
               -d "name=ci-token&type=GLOBAL_ANALYSIS_TOKEN")
             TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.token')
           fi
-          
           if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
             echo "❌ Error generando token: $TOKEN_RESPONSE"
             exit 1
           fi
-          
           echo "SONAR_TOKEN=$TOKEN" >> $GITHUB_ENV
-          echo "✅ Token generado correctamente"
+          echo "✅ Token generado"
 
-          # 2. Quality Gate: usar el por defecto "Sonar way" o crear "SAST Standard"
-          QG_NAME="SAST Standard"
-          # Verificar si ya existe
-          EXISTING=$(curl -s "http://localhost:9000/api/qualitygates/list" -u "admin:admin" | jq -r --arg name "$QG_NAME" '.qualitygates[] | select(.name==$name) | .id')
-          
-          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
-            QG_ID=$EXISTING
-            echo "ℹ️ Quality Gate '$QG_NAME' ya existe con ID $QG_ID"
-          else
-            # Intentar crear
-            QG_ID=$(curl -s -X POST "http://localhost:9000/api/qualitygates/create" \
-              -u "admin:admin" \
-              -d "name=$QG_NAME" | jq -r '.id')
-            if [ "$QG_ID" = "null" ] || [ -z "$QG_ID" ]; then
-              echo "⚠️ No se pudo crear '$QG_NAME'. Usando el Quality Gate por defecto 'Sonar way'."
-              # Obtener ID del "Sonar way"
-              QG_ID=$(curl -s "http://localhost:9000/api/qualitygates/list" -u "admin:admin" | jq -r '.qualitygates[] | select(.name=="Sonar way") | .id')
-              if [ -z "$QG_ID" ] || [ "$QG_ID" = "null" ]; then
-                echo "❌ No se encontró el Quality Gate por defecto. Continuamos sin configurar condiciones."
-                QG_ID=""
-              else
-                echo "✅ Usando Quality Gate 'Sonar way' con ID $QG_ID"
-              fi
+          # 2. Crear Quality Gate con nombre único (para evitar conflictos)
+          QG_NAME="SAST-Standard-$(date +%s)"
+          echo "📌 Creando Quality Gate: $QG_NAME"
+
+          # Intentar crear
+          QG_ID=$(curl -s -X POST "http://localhost:9000/api/qualitygates/create" \
+            -u "admin:admin" \
+            -d "name=$QG_NAME" | jq -r '.id')
+
+          if [ "$QG_ID" = "null" ] || [ -z "$QG_ID" ]; then
+            echo "⚠️ No se pudo crear '$QG_NAME'. Usando el Quality Gate por defecto 'Sonar way'."
+            # Obtener ID del "Sonar way"
+            QG_ID=$(curl -s "http://localhost:9000/api/qualitygates/list" -u "admin:admin" | jq -r '.qualitygates[] | select(.name=="Sonar way") | .id')
+            if [ -z "$QG_ID" ] || [ "$QG_ID" = "null" ]; then
+              echo "❌ No se encontró el Quality Gate por defecto. Se usará el que tenga el proyecto."
+              QG_ID=""
             else
-              echo "✅ Quality Gate '$QG_NAME' creado con ID $QG_ID"
+              echo "✅ Usando Quality Gate 'Sonar way' con ID $QG_ID"
             fi
+          else
+            echo "✅ Quality Gate '$QG_NAME' creado con ID $QG_ID"
           fi
 
-          # Si tenemos un ID válido, configuramos condiciones y lo establecemos como predeterminado
+          # 3. Si tenemos un ID válido, configuramos condiciones RESTRICTIVAS PARA NUEVO CÓDIGO
           if [ -n "$QG_ID" ] && [ "$QG_ID" != "null" ]; then
-            # Establecer como predeterminado (opcional)
+            # Eliminar condiciones existentes (opcional, para evitar duplicados)
+            # Obtener IDs de condiciones actuales y borrarlas
+            CONDITIONS=$(curl -s "http://localhost:9000/api/qualitygates/show?id=$QG_ID" -u "admin:admin" | jq -r '.conditions[]?.id')
+            for cond in $CONDITIONS; do
+              curl -s -X POST "http://localhost:9000/api/qualitygates/delete_condition" -u "admin:admin" -d "id=$cond" > /dev/null
+            done
+
+            # Crear condiciones restrictivas (todas sobre nuevo código)
+            # Nuevos bugs: 0 permitidos
+            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_bugs&op=LT&error=1" || true
+            # Nuevas vulnerabilidades: 0 permitidas
+            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_vulnerabilities&op=LT&error=1" || true
+            # Security hotspots revisados: debe ser 100% (opcional, pero lo ponemos)
+            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_security_hotspots_reviewed&op=LT&error=100" || true
+            # Nuevos code smells: máximo 5 (warning) y 10 (error)
+            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_code_smells&op=LT&warning=5&error=10" || true
+            # Duplicación en código nuevo: máximo 5% (warning) y 10% (error)
+            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_duplicated_lines_density&op=GT&warning=5&error=10" || true
+            # Rating de mantenibilidad en código nuevo: máximo B (error si C o peor)
+            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_maintainability_rating&op=GT&error=2" || true
+            # Rating de fiabilidad en código nuevo: máximo B
+            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_reliability_rating&op=GT&error=2" || true
+            # Rating de seguridad en código nuevo: máximo B
+            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_security_rating&op=GT&error=2" || true
+
+            # Establecer este Quality Gate como predeterminado (para que todos los proyectos lo usen)
             curl -s -X POST "http://localhost:9000/api/qualitygates/set_as_default" -u "admin:admin" -d "id=$QG_ID" || true
 
-            # Crear condiciones (ignorar si ya existen)
-            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_bugs&op=LT&error=1" || true
-            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_vulnerabilities&op=LT&error=1" || true
-            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_security_hotspots_reviewed&op=LT&error=1" || true
-            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=new_code_smells&op=LT&warning=10&error=20" || true
-            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=duplicated_lines_density&op=GT&warning=5&error=10" || true
-            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=sqale_rating&op=LT&error=2" || true
-            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=reliability_rating&op=LT&error=2" || true
-            curl -s -X POST "http://localhost:9000/api/qualitygates/create_condition" -u "admin:admin" -d "gateId=$QG_ID&metric=security_rating&op=LT&error=2" || true
-
-            echo "✅ Quality Gate configurado (ID $QG_ID)"
+            echo "✅ Quality Gate restrictivo configurado (ID $QG_ID)"
           else
-            echo "⚠️ No se configuró ningún Quality Gate. El análisis usará el predeterminado."
+            echo "⚠️ No se pudo configurar un Quality Gate personalizado. Se usará el predeterminado."
           fi
 
       # ---------- Tests y cobertura ----------
@@ -178,53 +184,60 @@ jobs:
           SONAR_SCANNER_OPTS: >
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
-        # Aunque falle el análisis (por QG), continuamos para generar reporte
 
       # ---------- Verificación de métricas (robusta) ----------
       - name: ✅ Verificar Quality Gate y Obtener Métricas
         if: always()
         run: |
-          if ! curl -sf http://localhost:9000/api/system/status > /dev/null 2>&1; then
-            echo "# ⚠️ Análisis Incompleto" >> $GITHUB_STEP_SUMMARY
-            echo "El contenedor de SonarQube no está disponible." >> $GITHUB_STEP_SUMMARY
-            exit 0
+          # Función para esperar hasta que las métricas estén disponibles
+          wait_for_metrics() {
+            local max_attempts=30
+            local attempt=1
+            while [ $attempt -le $max_attempts ]; do
+              METRICS_RAW=$(curl -s "http://localhost:9000/api/measures/component?component=taller-sast&metricKeys=bugs,vulnerabilities,code_smells,duplicated_lines_density,ncloc,security_rating,reliability_rating,sqale_rating" -u "admin:admin")
+              COMPONENT=$(echo "$METRICS_RAW" | jq -r '.component // null')
+              if [ "$COMPONENT" != "null" ] && [ -n "$COMPONENT" ]; then
+                echo "✅ Métricas disponibles"
+                echo "$METRICS_RAW"
+                return 0
+              fi
+              echo "⏳ Esperando métricas (intento $attempt/$max_attempts)..."
+              sleep 5
+              attempt=$((attempt+1))
+            done
+            echo "⚠️ No se obtuvieron métricas después de $max_attempts intentos"
+            return 1
+          }
+
+          # Esperar y capturar las métricas
+          if wait_for_metrics; then
+            METRICS_RAW=$(curl -s "http://localhost:9000/api/measures/component?component=taller-sast&metricKeys=bugs,vulnerabilities,code_smells,duplicated_lines_density,ncloc,security_rating,reliability_rating,sqale_rating" -u "admin:admin")
+            QG_RAW=$(curl -s "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" -u "admin:admin")
+
+            # Extraer valores (con valores por defecto)
+            BUGS=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="bugs") | .value // 0')
+            VULNS=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="vulnerabilities") | .value // 0')
+            SMELLS=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="code_smells") | .value // 0')
+            DUPL=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="duplicated_lines_density") | .value // 0.0')
+            LINES=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="ncloc") | .value // 0')
+            SEC_R=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="security_rating") | .value // 1')
+            REL_R=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="reliability_rating") | .value // 1')
+            MAIN_R=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="sqale_rating") | .value // 1')
+            QG_STATUS=$(echo "$QG_RAW" | jq -r '.projectStatus.status // "UNKNOWN"')
+          else
+            # Valores por defecto si no hay métricas
+            BUGS=0
+            VULNS=0
+            SMELLS=0
+            DUPL=0.0
+            LINES=0
+            SEC_R=1
+            REL_R=1
+            MAIN_R=1
+            QG_STATUS="UNKNOWN"
           fi
 
-          echo "Esperando a que las métricas estén disponibles..."
-          sleep 10  # Aumentamos a 10 segundos
-
-          # Obtener métricas y estado del Quality Gate
-          METRICS_RAW=$(curl -s "http://localhost:9000/api/measures/component?component=taller-sast&metricKeys=bugs,vulnerabilities,code_smells,duplicated_lines_density,ncloc,security_rating,reliability_rating,sqale_rating" -u "admin:admin")
-          QG_RAW=$(curl -s "http://localhost:9000/api/qualitygates/project_status?projectKey=taller-sast" -u "admin:admin")
-
-          # Verificar si el proyecto existe (componente no null)
-          COMPONENT=$(echo "$METRICS_RAW" | jq -r '.component // null')
-          if [ "$COMPONENT" = "null" ] || [ -z "$COMPONENT" ]; then
-            echo "⚠️ El proyecto 'taller-sast' aún no tiene métricas. Puede que el análisis no se haya completado."
-            echo "METRICS_BUGS=0" >> $GITHUB_ENV
-            echo "METRICS_VULNS=0" >> $GITHUB_ENV
-            echo "METRICS_SMELLS=0" >> $GITHUB_ENV
-            echo "METRICS_DUPL=0.0" >> $GITHUB_ENV
-            echo "METRICS_LINES=0" >> $GITHUB_ENV
-            echo "METRICS_SEC=?" >> $GITHUB_ENV
-            echo "METRICS_REL=?" >> $GITHUB_ENV
-            echo "METRICS_MAIN=?" >> $GITHUB_ENV
-            echo "QG_STATUS=UNKNOWN" >> $GITHUB_ENV
-            exit 0
-          fi
-
-          # Extraer valores con jq, con valores por defecto si no existen
-          BUGS=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="bugs") | .value // 0')
-          VULNS=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="vulnerabilities") | .value // 0')
-          SMELLS=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="code_smells") | .value // 0')
-          DUPL=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="duplicated_lines_density") | .value // 0.0')
-          LINES=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="ncloc") | .value // 0')
-          SEC_R=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="security_rating") | .value // 1')
-          REL_R=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="reliability_rating") | .value // 1')
-          MAIN_R=$(echo "$METRICS_RAW" | jq -r '.component.measures[]? | select(.metric=="sqale_rating") | .value // 1')
-          QG_STATUS=$(echo "$QG_RAW" | jq -r '.projectStatus.status // "UNKNOWN"')
-
-          # Convertir ratings numéricos a letras
+          # Convertir ratings a letras
           rating_to_letter() { case $1 in 1) echo "A";; 2) echo "B";; 3) echo "C";; 4) echo "D";; 5) echo "E";; *) echo "?";; esac }
           SEC_LETTER=$(rating_to_letter $SEC_R)
           REL_LETTER=$(rating_to_letter $REL_R)
@@ -251,16 +264,16 @@ jobs:
             EMOJI="❌"
             STATUS_TXT="FALLADO"
           fi
-          
+
           rating_emoji() { case $1 in A) echo "🟢";; B) echo "🟡";; *) echo "🔴";; esac }
-          
+
           cat >> $GITHUB_STEP_SUMMARY << EOF
           # ${EMOJI} Reporte SAST - Taller SAST
-          
+
           ## Estado del Quality Gate: **${STATUS_TXT}**
-          
+
           ### Métricas Generales
-          
+
           | Métrica | Valor |
           |---|---|
           | 🐛 Bugs | **${METRICS_BUGS}** |
@@ -268,15 +281,15 @@ jobs:
           | 👃 Code Smells | **${METRICS_SMELLS}** |
           | 📋 Líneas de código | **${METRICS_LINES}** |
           | 🔄 Duplicación | **${METRICS_DUPL}%** |
-          
+
           ### Ratings de Calidad
-          
+
           | Categoría | Rating |
           |---|---|
           | 🔒 Seguridad | $(rating_emoji $METRICS_SEC) **${METRICS_SEC}** |
           | 🛡️ Fiabilidad | $(rating_emoji $METRICS_REL) **${METRICS_REL}** |
           | 🏗️ Mantenibilidad | $(rating_emoji $METRICS_MAIN) **${METRICS_MAIN}** |
-          
+
           ---
           *Análisis ejecutado en rama \`${{ github.ref_name }}\`*
           EOF
