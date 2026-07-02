@@ -297,7 +297,44 @@ jobs:
           *Análisis ejecutado en rama \`${{ github.ref_name }}\`*
           EOF
 
-      # ---------- 8. Enviar notificación a Telegram (CORREGIDO con HTML) ----------
+      # ---------- 8. Construir mensaje para Telegram (paso intermedio) ----------
+      - name: 📝 Construir mensaje para Telegram
+        if: always()
+        id: telegram_message
+        run: |
+          # Escapar caracteres especiales para HTML
+          # No es necesario escapar emojis ni caracteres especiales si usamos HTML
+          MESSAGE=$(cat <<EOF
+          <b>${EMOJI} Análisis SAST - Taller SAST</b>
+          
+          <b>Estado del Quality Gate:</b> ${STATUS_TXT}
+          <b>Rama:</b> <code>${{ github.ref_name }}</code>
+          <b>Autor:</b> ${{ github.actor }}
+          <b>Commit:</b> ${{ github.event.head_commit.message }}
+          
+          <b>Métricas Generales:</b>
+          🐛 Bugs: ${METRICS_BUGS}
+          🔓 Vulnerabilidades: ${METRICS_VULNS}
+          👃 Code Smells: ${METRICS_SMELLS}
+          📋 Líneas de código: ${METRICS_LINES}
+          🔄 Duplicación: ${METRICS_DUPL}%
+          
+          <b>Ratings de Calidad:</b>
+          🔒 Seguridad: ${METRICS_SEC}
+          🛡️ Fiabilidad: ${METRICS_REL}
+          🏗️ Mantenibilidad: ${METRICS_MAIN}
+          
+          <a href="http://sonarqube:9000/dashboard?id=taller-sast">🔗 Ver detalles en SonarQube</a>
+          EOF
+          )
+          # Guardar el mensaje en un archivo para usarlo después
+          echo "$MESSAGE" > telegram_message.txt
+          # También guardar como output para depuración
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "$MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # ---------- 9. Enviar notificación a Telegram ----------
       - name: 📨 Enviar notificación a Telegram
         if: always()
         uses: appleboy/telegram-action@master
@@ -305,24 +342,4 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           format: html
-          message: |
-            <b>${EMOJI} Análisis SAST - Taller SAST</b>
-            
-            <b>Estado del Quality Gate:</b> ${STATUS_TXT}
-            <b>Rama:</b> <code>${{ github.ref_name }}</code>
-            <b>Autor:</b> ${{ github.actor }}
-            <b>Commit:</b> ${{ github.event.head_commit.message }}
-            
-            <b>Métricas Generales:</b>
-            🐛 Bugs: ${METRICS_BUGS}
-            🔓 Vulnerabilidades: ${METRICS_VULNS}
-            👃 Code Smells: ${METRICS_SMELLS}
-            📋 Líneas de código: ${METRICS_LINES}
-            🔄 Duplicación: ${METRICS_DUPL}%
-            
-            <b>Ratings de Calidad:</b>
-            🔒 Seguridad: ${METRICS_SEC}
-            🛡️ Fiabilidad: ${METRICS_REL}
-            🏗️ Mantenibilidad: ${METRICS_MAIN}
-            
-            <a href="http://sonarqube:9000/dashboard?id=taller-sast">Ver detalles en SonarQube</a>
+          message_file: telegram_message.txt
